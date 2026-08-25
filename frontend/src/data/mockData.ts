@@ -6,7 +6,9 @@ import {
   DashboardMetrics,
   InvestigationAnomaly,
   ActivityEvent,
-  FullIncident 
+  FullIncident,
+  MerchantProfile,
+  MerchantDirectoryItem
 } from '../types';
 
 // Merchants
@@ -1144,6 +1146,277 @@ export const fullIncidents: FullIncident[] = [
     topSignals: ['sku_diversity_ratio (+33%)'],
   },
 ];
+
+// Merchant directory items
+export const merchantDirectory: MerchantDirectoryItem[] = [
+  { id: 'merchant_001', name: 'merchant_001', dailyVolume: 650, riskLevel: 'medium', statusLabel: '2 FRAUD INCIDENTS', statusColor: '#FF5C5C', incidentCount: 2, riskLabel: 'HIGH ATTENTION', riskColor: '#FF5C5C' },
+  { id: 'merchant_002', name: 'merchant_002', dailyVolume: 420, riskLevel: 'low', statusLabel: '1 REVIEW CASE', statusColor: '#FBBF24', incidentCount: 1, riskLabel: 'WATCH', riskColor: '#FBBF24' },
+  { id: 'merchant_003', name: 'merchant_003', dailyVolume: 850, riskLevel: 'high', statusLabel: '1 ORGANIC SPIKE', statusColor: '#34D399', incidentCount: 1, riskLabel: 'STABLE', riskColor: '#34D399' },
+  { id: 'merchant_004', name: 'merchant_004', dailyVolume: 300, riskLevel: 'low', statusLabel: '1 ORGANIC SPIKE', statusColor: '#34D399', incidentCount: 1, riskLabel: 'NORMAL', riskColor: '#38BDF8' },
+  { id: 'merchant_005', name: 'merchant_005', dailyVolume: 580, riskLevel: 'medium', statusLabel: '1 FRAUD INCIDENT', statusColor: '#FF5C5C', incidentCount: 1, riskLabel: 'HIGH ATTENTION', riskColor: '#FF5C5C' },
+  { id: 'merchant_006', name: 'merchant_006', dailyVolume: 480, riskLevel: 'low', statusLabel: '1 REVIEW CASE', statusColor: '#FBBF24', incidentCount: 1, riskLabel: 'WATCH', riskColor: '#FBBF24' },
+  { id: 'merchant_007', name: 'merchant_007', dailyVolume: 720, riskLevel: 'medium', statusLabel: '1 ORGANIC SPIKE', statusColor: '#34D399', incidentCount: 1, riskLabel: 'STABLE', riskColor: '#34D399' },
+  { id: 'merchant_008', name: 'merchant_008', dailyVolume: 520, riskLevel: 'medium', statusLabel: 'NO ANOMALIES', statusColor: '#8A94A6', incidentCount: 0, riskLabel: 'NORMAL', riskColor: '#38BDF8' },
+];
+
+// Merchant behavioral profiles
+export const merchantProfiles: Record<string, MerchantProfile> = {
+  merchant_001: {
+    merchantId: 'merchant_001',
+    riskPosture: 'high_attention',
+    riskLabel: 'HIGH ATTENTION',
+    summary: 'Transaction activity is generally stable, but recent behavior shows elevated payment failures and reduced network diversity. Two fraud-related anomalies detected within the monitoring period.',
+    totalWindows: 45,
+    spikeCount: 3,
+    fraudCount: 2,
+    organicCount: 1,
+    reviewCount: 0,
+    behavioralDimensions: [
+      { key: 'transaction_volume', label: 'TRANSACTION VOLUME', baselineNormal: 650, baselineCurrent: 1563, unit: 'txns', normalRange: [550, 750], currentRange: [1170, 1563], signalType: 'fraud', changePercent: 140 },
+      { key: 'payment_success', label: 'PAYMENT SUCCESS', baselineNormal: 96.2, baselineCurrent: 90.2, unit: '%', normalRange: [94, 98], currentRange: [88, 92], signalType: 'fraud', changePercent: -6 },
+      { key: 'customer_diversity', label: 'CUSTOMER DIVERSITY', baselineNormal: 64, baselineCurrent: 52, unit: '%', normalRange: [58, 72], currentRange: [45, 58], signalType: 'fraud', changePercent: -19 },
+      { key: 'device_diversity', label: 'DEVICE DIVERSITY', baselineNormal: 73, baselineCurrent: 56, unit: '%', normalRange: [65, 82], currentRange: [48, 62], signalType: 'fraud', changePercent: -23 },
+      { key: 'ip_diversity', label: 'IP DIVERSITY', baselineNormal: 68, baselineCurrent: 48, unit: '%', normalRange: [60, 76], currentRange: [40, 55], signalType: 'fraud', changePercent: -29 },
+      { key: 'retry_behavior', label: 'RETRY BEHAVIOR', baselineNormal: 1.4, baselineCurrent: 2.8, unit: '%', normalRange: [1.0, 2.0], currentRange: [2.2, 3.5], signalType: 'fraud', changePercent: 100 },
+    ],
+    anomalyHistory: [
+      {
+        id: 'anomaly_024', date: '2025-07-24', dateFormatted: '24 JUL 2025', status: 'fraud_spike', severity: 'critical',
+        headline: 'Coordinated payment failure pattern',
+        summary: 'Transaction volume surged to 2.4× baseline with simultaneous degradation in payment success and network diversity.',
+        fraudProbability: 0.961, confidence: 0.961, confidenceBand: 'high_confidence',
+        evidenceSignals: [
+          { feature: 'failed_payment_rate', label: 'Failed Payment Rate', normalValue: 3.8, currentValue: 9.8, unit: '%', changePercent: 157, changeDirection: 'increased', signalStrength: 'strong', signalType: 'fraud', description: 'Payment failures significantly elevated, suggesting card testing or stolen credentials.' },
+          { feature: 'ip_diversity_ratio', label: 'IP Diversity', normalValue: 68, currentValue: 48, unit: '%', changePercent: -29, changeDirection: 'decreased', signalStrength: 'strong', signalType: 'fraud', description: 'Fewer unique IP addresses responsible for a larger share of transactions.' },
+        ],
+      },
+      {
+        id: 'anomaly_009', date: '2025-07-08', dateFormatted: '08 JUL 2025', status: 'fraud_spike', severity: 'high',
+        headline: 'Secondary fraud pattern with behavioral fingerprint match',
+        summary: 'Secondary fraud pattern detected with similar behavioral fingerprint to the Jul 24 incident.',
+        fraudProbability: 0.82, confidence: 0.82, confidenceBand: 'high_confidence',
+        evidenceSignals: [
+          { feature: 'failed_payment_rate', label: 'Failed Payment Rate', normalValue: 3.8, currentValue: 7.2, unit: '%', changePercent: 89, changeDirection: 'increased', signalStrength: 'strong', signalType: 'fraud', description: 'Elevated payment failures mirror the pattern seen in the later Jul 24 incident.' },
+          { feature: 'ip_diversity_ratio', label: 'IP Diversity', normalValue: 68, currentValue: 52, unit: '%', changePercent: -24, changeDirection: 'decreased', signalStrength: 'moderate', signalType: 'fraud', description: 'Reduced IP diversity suggesting coordinated access.' },
+        ],
+      },
+      {
+        id: 'anomaly_007', date: '2025-07-03', dateFormatted: '03 JUL 2025', status: 'organic_spike', severity: 'low',
+        headline: 'Promotional event driving organic growth',
+        summary: 'Volume increase consistent with promotional activity, healthy behavioral signals.',
+        fraudProbability: 0.08, confidence: 0.92, confidenceBand: 'high_confidence',
+        evidenceSignals: [
+          { feature: 'new_customer_share', label: 'New Customer Share', normalValue: 44, currentValue: 58, unit: '%', changePercent: 32, changeDirection: 'increased', signalStrength: 'moderate', signalType: 'organic', description: 'Healthy new customer acquisition consistent with promotion.' },
+        ],
+      },
+    ],
+  },
+  merchant_002: {
+    merchantId: 'merchant_002',
+    riskPosture: 'watch',
+    riskLabel: 'WATCH',
+    summary: 'Generally stable merchant with one ambiguous behavioral signal. Moderate volume increase with slightly elevated retry behavior requires observation.',
+    totalWindows: 45,
+    spikeCount: 1,
+    fraudCount: 0,
+    organicCount: 0,
+    reviewCount: 1,
+    behavioralDimensions: [
+      { key: 'transaction_volume', label: 'TRANSACTION VOLUME', baselineNormal: 420, baselineCurrent: 630, unit: 'txns', normalRange: [350, 500], currentRange: [550, 680], signalType: 'neutral', changePercent: 50 },
+      { key: 'payment_success', label: 'PAYMENT SUCCESS', baselineNormal: 95.8, baselineCurrent: 94.2, unit: '%', normalRange: [93, 98], currentRange: [92, 96], signalType: 'neutral', changePercent: -2 },
+      { key: 'customer_diversity', label: 'CUSTOMER DIVERSITY', baselineNormal: 58, baselineCurrent: 54, unit: '%', normalRange: [50, 66], currentRange: [48, 60], signalType: 'neutral', changePercent: -7 },
+      { key: 'device_diversity', label: 'DEVICE DIVERSITY', baselineNormal: 65, baselineCurrent: 62, unit: '%', normalRange: [56, 74], currentRange: [54, 68], signalType: 'neutral', changePercent: -5 },
+      { key: 'ip_diversity', label: 'IP DIVERSITY', baselineNormal: 71, baselineCurrent: 65, unit: '%', normalRange: [62, 80], currentRange: [58, 72], signalType: 'fraud', changePercent: -8 },
+      { key: 'retry_behavior', label: 'RETRY BEHAVIOR', baselineNormal: 1.2, baselineCurrent: 1.6, unit: '%', normalRange: [0.8, 1.8], currentRange: [1.2, 2.2], signalType: 'fraud', changePercent: 33 },
+    ],
+    anomalyHistory: [
+      {
+        id: 'anomaly_015', date: '2025-07-15', dateFormatted: '15 JUL 2025', status: 'review_required', severity: 'medium',
+        headline: 'Ambiguous behavioral signals require human judgment',
+        summary: 'Moderate volume increase with ambiguous behavioral signals requiring human review.',
+        fraudProbability: 0.58, confidence: 0.65, confidenceBand: 'ambiguous',
+        evidenceSignals: [
+          { feature: 'retry_rate', label: 'Retry Behavior', normalValue: 1.2, currentValue: 1.6, unit: '%', changePercent: 33, changeDirection: 'increased', signalStrength: 'moderate', signalType: 'fraud', description: 'Slightly elevated retry attempts may indicate payment issues.' },
+          { feature: 'ip_diversity_ratio', label: 'IP Diversity', normalValue: 71, currentValue: 65, unit: '%', changePercent: -8, changeDirection: 'decreased', signalStrength: 'weak', signalType: 'fraud', description: 'Minor decrease in IP diversity, not yet at concerning levels.' },
+        ],
+      },
+    ],
+  },
+  merchant_003: {
+    merchantId: 'merchant_003',
+    riskPosture: 'normal',
+    riskLabel: 'STABLE',
+    summary: 'High-volume merchant with healthy behavioral patterns. Recent organic traffic surge driven by new customer acquisition and promotional activity.',
+    totalWindows: 45,
+    spikeCount: 1,
+    fraudCount: 0,
+    organicCount: 1,
+    reviewCount: 0,
+    behavioralDimensions: [
+      { key: 'transaction_volume', label: 'TRANSACTION VOLUME', baselineNormal: 850, baselineCurrent: 1870, unit: 'txns', normalRange: [720, 980], currentRange: [1500, 2000], signalType: 'organic', changePercent: 120 },
+      { key: 'payment_success', label: 'PAYMENT SUCCESS', baselineNormal: 95.8, baselineCurrent: 95.2, unit: '%', normalRange: [93, 98], currentRange: [92, 97], signalType: 'neutral', changePercent: -1 },
+      { key: 'customer_diversity', label: 'CUSTOMER DIVERSITY', baselineNormal: 62, baselineCurrent: 74, unit: '%', normalRange: [54, 70], currentRange: [66, 82], signalType: 'organic', changePercent: 19 },
+      { key: 'device_diversity', label: 'DEVICE DIVERSITY', baselineNormal: 70, baselineCurrent: 72, unit: '%', normalRange: [62, 78], currentRange: [64, 80], signalType: 'neutral', changePercent: 3 },
+      { key: 'ip_diversity', label: 'IP DIVERSITY', baselineNormal: 66, baselineCurrent: 68, unit: '%', normalRange: [58, 74], currentRange: [60, 76], signalType: 'neutral', changePercent: 3 },
+      { key: 'retry_behavior', label: 'RETRY BEHAVIOR', baselineNormal: 1.8, baselineCurrent: 1.6, unit: '%', normalRange: [1.2, 2.4], currentRange: [1.0, 2.2], signalType: 'organic', changePercent: -11 },
+    ],
+    anomalyHistory: [
+      {
+        id: 'anomaly_018', date: '2025-07-18', dateFormatted: '18 JUL 2025', status: 'organic_spike', severity: 'low',
+        headline: 'Organic demand surge with healthy behavioral profile',
+        summary: 'Transaction volume doubled with healthy new customer acquisition and normal payment patterns.',
+        fraudProbability: 0.12, confidence: 0.88, confidenceBand: 'high_confidence',
+        evidenceSignals: [
+          { feature: 'new_customer_share', label: 'New Customer Activity', normalValue: 42, currentValue: 61, unit: '%', changePercent: 45, changeDirection: 'increased', signalStrength: 'moderate', signalType: 'organic', description: 'Elevated new customer acquisition suggests promotional or viral activity.' },
+          { feature: 'sku_diversity_ratio', label: 'SKU Diversity', normalValue: 12, currentValue: 14, unit: 'items', changePercent: 17, changeDirection: 'increased', signalStrength: 'weak', signalType: 'organic', description: 'Product diversity increased naturally with the volume surge.' },
+        ],
+      },
+    ],
+  },
+  merchant_004: {
+    merchantId: 'merchant_004',
+    riskPosture: 'normal',
+    riskLabel: 'NORMAL',
+    summary: 'Low-volume merchant with consistent behavioral patterns. One flash sale event produced an organic spike with healthy customer signals.',
+    totalWindows: 45,
+    spikeCount: 1,
+    fraudCount: 0,
+    organicCount: 1,
+    reviewCount: 0,
+    behavioralDimensions: [
+      { key: 'transaction_volume', label: 'TRANSACTION VOLUME', baselineNormal: 300, baselineCurrent: 570, unit: 'txns', normalRange: [250, 360], currentRange: [450, 620], signalType: 'organic', changePercent: 90 },
+      { key: 'payment_success', label: 'PAYMENT SUCCESS', baselineNormal: 96.5, baselineCurrent: 96.1, unit: '%', normalRange: [94, 99], currentRange: [93, 98], signalType: 'neutral', changePercent: 0 },
+      { key: 'customer_diversity', label: 'CUSTOMER DIVERSITY', baselineNormal: 55, baselineCurrent: 58, unit: '%', normalRange: [46, 64], currentRange: [48, 66], signalType: 'organic', changePercent: 5 },
+      { key: 'device_diversity', label: 'DEVICE DIVERSITY', baselineNormal: 68, baselineCurrent: 70, unit: '%', normalRange: [58, 78], currentRange: [60, 80], signalType: 'neutral', changePercent: 3 },
+      { key: 'ip_diversity', label: 'IP DIVERSITY', baselineNormal: 72, baselineCurrent: 71, unit: '%', normalRange: [62, 82], currentRange: [61, 81], signalType: 'neutral', changePercent: -1 },
+      { key: 'retry_behavior', label: 'RETRY BEHAVIOR', baselineNormal: 1.1, baselineCurrent: 1.0, unit: '%', normalRange: [0.6, 1.6], currentRange: [0.5, 1.5], signalType: 'neutral', changePercent: -9 },
+    ],
+    anomalyHistory: [
+      {
+        id: 'anomaly_005', date: '2025-07-05', dateFormatted: '05 JUL 2025', status: 'organic_spike', severity: 'low',
+        headline: 'Flash sale event with normal payment behavior',
+        summary: 'Volume increase driven by a flash sale event with normal payment behavior.',
+        fraudProbability: 0.05, confidence: 0.95, confidenceBand: 'high_confidence',
+        evidenceSignals: [
+          { feature: 'sku_diversity_ratio', label: 'SKU Diversity', normalValue: 12, currentValue: 16, unit: 'items', changePercent: 33, changeDirection: 'increased', signalStrength: 'moderate', signalType: 'organic', description: 'Increased product variety consistent with promotional event.' },
+        ],
+      },
+    ],
+  },
+  merchant_005: {
+    merchantId: 'merchant_005',
+    riskPosture: 'high_attention',
+    riskLabel: 'HIGH ATTENTION',
+    summary: 'Medium-volume merchant with a critical fraud incident. Device fingerprint clustering and elevated retry rates indicate automated fraud tooling.',
+    totalWindows: 45,
+    spikeCount: 1,
+    fraudCount: 1,
+    organicCount: 0,
+    reviewCount: 0,
+    behavioralDimensions: [
+      { key: 'transaction_volume', label: 'TRANSACTION VOLUME', baselineNormal: 580, baselineCurrent: 1340, unit: 'txns', normalRange: [490, 670], currentRange: [1100, 1400], signalType: 'fraud', changePercent: 131 },
+      { key: 'payment_success', label: 'PAYMENT SUCCESS', baselineNormal: 96.0, baselineCurrent: 91.8, unit: '%', normalRange: [93, 99], currentRange: [88, 94], signalType: 'fraud', changePercent: -4 },
+      { key: 'customer_diversity', label: 'CUSTOMER DIVERSITY', baselineNormal: 60, baselineCurrent: 48, unit: '%', normalRange: [52, 68], currentRange: [40, 55], signalType: 'fraud', changePercent: -20 },
+      { key: 'device_diversity', label: 'DEVICE DIVERSITY', baselineNormal: 72, baselineCurrent: 42, unit: '%', normalRange: [63, 81], currentRange: [35, 50], signalType: 'fraud', changePercent: -42 },
+      { key: 'ip_diversity', label: 'IP DIVERSITY', baselineNormal: 64, baselineCurrent: 50, unit: '%', normalRange: [55, 73], currentRange: [42, 58], signalType: 'fraud', changePercent: -22 },
+      { key: 'retry_behavior', label: 'RETRY BEHAVIOR', baselineNormal: 2.1, baselineCurrent: 4.1, unit: '%', normalRange: [1.5, 2.8], currentRange: [3.2, 5.0], signalType: 'fraud', changePercent: 95 },
+    ],
+    anomalyHistory: [
+      {
+        id: 'anomaly_008', date: '2025-07-08', dateFormatted: '08 JUL 2025', status: 'fraud_spike', severity: 'high',
+        headline: 'IP concentration anomaly with device fingerprint clustering',
+        summary: 'Sudden transaction surge with concentrated device fingerprints and elevated payment retries.',
+        fraudProbability: 0.87, confidence: 0.87, confidenceBand: 'high_confidence',
+        evidenceSignals: [
+          { feature: 'device_diversity_ratio', label: 'Device Diversity', normalValue: 72, currentValue: 42, unit: '%', changePercent: -42, changeDirection: 'decreased', signalStrength: 'strong', signalType: 'fraud', description: 'Severe drop in device diversity indicates automated or scripted access.' },
+          { feature: 'retry_rate', label: 'Retry Rate', normalValue: 2.1, currentValue: 4.1, unit: '%', changePercent: 89, changeDirection: 'increased', signalStrength: 'strong', signalType: 'fraud', description: 'High retry rate suggests card testing or credential stuffing.' },
+        ],
+      },
+    ],
+  },
+  merchant_006: {
+    merchantId: 'merchant_006',
+    riskPosture: 'watch',
+    riskLabel: 'WATCH',
+    summary: 'Low-volume merchant with an unusual temporal pattern. Evening activity concentration and moderate IP concentration warrant further observation.',
+    totalWindows: 45,
+    spikeCount: 1,
+    fraudCount: 0,
+    organicCount: 0,
+    reviewCount: 1,
+    behavioralDimensions: [
+      { key: 'transaction_volume', label: 'TRANSACTION VOLUME', baselineNormal: 480, baselineCurrent: 720, unit: 'txns', normalRange: [400, 560], currentRange: [600, 780], signalType: 'neutral', changePercent: 50 },
+      { key: 'payment_success', label: 'PAYMENT SUCCESS', baselineNormal: 96.2, baselineCurrent: 95.1, unit: '%', normalRange: [94, 98], currentRange: [93, 97], signalType: 'neutral', changePercent: -1 },
+      { key: 'customer_diversity', label: 'CUSTOMER DIVERSITY', baselineNormal: 56, baselineCurrent: 50, unit: '%', normalRange: [48, 64], currentRange: [42, 58], signalType: 'neutral', changePercent: -11 },
+      { key: 'device_diversity', label: 'DEVICE DIVERSITY', baselineNormal: 62, baselineCurrent: 55, unit: '%', normalRange: [53, 71], currentRange: [46, 62], signalType: 'neutral', changePercent: -11 },
+      { key: 'ip_diversity', label: 'IP DIVERSITY', baselineNormal: 71, baselineCurrent: 58, unit: '%', normalRange: [62, 80], currentRange: [50, 66], signalType: 'fraud', changePercent: -18 },
+      { key: 'retry_behavior', label: 'RETRY BEHAVIOR', baselineNormal: 1.5, baselineCurrent: 1.8, unit: '%', normalRange: [1.0, 2.0], currentRange: [1.3, 2.4], signalType: 'neutral', changePercent: 20 },
+    ],
+    anomalyHistory: [
+      {
+        id: 'anomaly_020', date: '2025-07-20', dateFormatted: '20 JUL 2025', status: 'review_required', severity: 'medium',
+        headline: 'Unusual temporal pattern with IP concentration',
+        summary: 'Unusual evening activity spike with mixed signals across behavioral features.',
+        fraudProbability: 0.52, confidence: 0.58, confidenceBand: 'ambiguous',
+        evidenceSignals: [
+          { feature: 'hour_distribution', label: 'Time Distribution', normalValue: 51, currentValue: 72, unit: '%', changePercent: 40, changeDirection: 'increased', signalStrength: 'moderate', signalType: 'neutral', description: 'Unusual concentration of activity in evening hours.' },
+          { feature: 'ip_diversity_ratio', label: 'IP Diversity', normalValue: 71, currentValue: 58, unit: '%', changePercent: -18, changeDirection: 'decreased', signalStrength: 'moderate', signalType: 'fraud', description: 'Moderate IP concentration, warrants further investigation.' },
+        ],
+      },
+    ],
+  },
+  merchant_007: {
+    merchantId: 'merchant_007',
+    riskPosture: 'normal',
+    riskLabel: 'STABLE',
+    summary: 'Medium-volume merchant with healthy behavioral profile. Recent organic spike consistent with marketing campaign and seasonal demand.',
+    totalWindows: 45,
+    spikeCount: 1,
+    fraudCount: 0,
+    organicCount: 1,
+    reviewCount: 0,
+    behavioralDimensions: [
+      { key: 'transaction_volume', label: 'TRANSACTION VOLUME', baselineNormal: 720, baselineCurrent: 1296, unit: 'txns', normalRange: [610, 830], currentRange: [1050, 1400], signalType: 'organic', changePercent: 80 },
+      { key: 'payment_success', label: 'PAYMENT SUCCESS', baselineNormal: 95.5, baselineCurrent: 95.2, unit: '%', normalRange: [93, 98], currentRange: [92, 97], signalType: 'neutral', changePercent: 0 },
+      { key: 'customer_diversity', label: 'CUSTOMER DIVERSITY', baselineNormal: 64, baselineCurrent: 78, unit: '%', normalRange: [55, 73], currentRange: [68, 86], signalType: 'organic', changePercent: 22 },
+      { key: 'device_diversity', label: 'DEVICE DIVERSITY', baselineNormal: 68, baselineCurrent: 70, unit: '%', normalRange: [58, 78], currentRange: [60, 80], signalType: 'neutral', changePercent: 3 },
+      { key: 'ip_diversity', label: 'IP DIVERSITY', baselineNormal: 66, baselineCurrent: 68, unit: '%', normalRange: [57, 75], currentRange: [59, 77], signalType: 'neutral', changePercent: 3 },
+      { key: 'retry_behavior', label: 'RETRY BEHAVIOR', baselineNormal: 1.6, baselineCurrent: 1.4, unit: '%', normalRange: [1.0, 2.2], currentRange: [0.8, 2.0], signalType: 'organic', changePercent: -13 },
+    ],
+    anomalyHistory: [
+      {
+        id: 'anomaly_012', date: '2025-07-12', dateFormatted: '12 JUL 2025', status: 'organic_spike', severity: 'low',
+        headline: 'Marketing campaign driving legitimate traffic growth',
+        summary: 'Gradual volume increase tracking with new marketing campaign launch and seasonal trends.',
+        fraudProbability: 0.08, confidence: 0.92, confidenceBand: 'high_confidence',
+        evidenceSignals: [
+          { feature: 'customer_diversity_ratio', label: 'Customer Diversity', normalValue: 64, currentValue: 78, unit: '%', changePercent: 22, changeDirection: 'increased', signalStrength: 'moderate', signalType: 'organic', description: 'Broad customer base expansion consistent with marketing activity.' },
+          { feature: 'new_customer_share', label: 'New Customer Share', normalValue: 44, currentValue: 58, unit: '%', changePercent: 31, changeDirection: 'increased', signalStrength: 'moderate', signalType: 'organic', description: 'Healthy new customer acquisition aligns with campaign timing.' },
+        ],
+      },
+    ],
+  },
+  merchant_008: {
+    merchantId: 'merchant_008',
+    riskPosture: 'normal',
+    riskLabel: 'NORMAL',
+    summary: 'Medium-volume merchant with completely stable behavioral patterns. No anomalies detected during the entire monitoring period.',
+    totalWindows: 45,
+    spikeCount: 0,
+    fraudCount: 0,
+    organicCount: 0,
+    reviewCount: 0,
+    behavioralDimensions: [
+      { key: 'transaction_volume', label: 'TRANSACTION VOLUME', baselineNormal: 520, baselineCurrent: 540, unit: 'txns', normalRange: [440, 600], currentRange: [460, 620], signalType: 'neutral', changePercent: 4 },
+      { key: 'payment_success', label: 'PAYMENT SUCCESS', baselineNormal: 96.0, baselineCurrent: 95.8, unit: '%', normalRange: [93, 99], currentRange: [93, 98], signalType: 'neutral', changePercent: 0 },
+      { key: 'customer_diversity', label: 'CUSTOMER DIVERSITY', baselineNormal: 60, baselineCurrent: 62, unit: '%', normalRange: [51, 69], currentRange: [53, 71], signalType: 'neutral', changePercent: 3 },
+      { key: 'device_diversity', label: 'DEVICE DIVERSITY', baselineNormal: 66, baselineCurrent: 65, unit: '%', normalRange: [56, 76], currentRange: [55, 75], signalType: 'neutral', changePercent: -2 },
+      { key: 'ip_diversity', label: 'IP DIVERSITY', baselineNormal: 68, baselineCurrent: 67, unit: '%', normalRange: [59, 77], currentRange: [58, 76], signalType: 'neutral', changePercent: -1 },
+      { key: 'retry_behavior', label: 'RETRY BEHAVIOR', baselineNormal: 1.3, baselineCurrent: 1.2, unit: '%', normalRange: [0.8, 1.8], currentRange: [0.7, 1.7], signalType: 'neutral', changePercent: -8 },
+    ],
+    anomalyHistory: [],
+  },
+};
 
 // Navigation items
 export const navigationItems: { id: string; label: string; path: string }[] = [

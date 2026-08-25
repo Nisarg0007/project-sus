@@ -1,58 +1,135 @@
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Users } from 'lucide-react';
+import { merchants, merchantDirectory, merchantProfiles, generateActivityData } from '../data/mockData';
+import { MerchantsHeader } from '../components/merchants/MerchantsHeader';
+import { MerchantDirectory } from '../components/merchants/MerchantDirectory';
+import { MerchantProfileHero } from '../components/merchants/MerchantProfileHero';
+import { BehavioralFingerprint } from '../components/merchants/BehavioralFingerprint';
+import { BehaviorChange } from '../components/merchants/BehaviorChange';
+import { MerchantActivity } from '../components/merchants/MerchantActivity';
+import { AnomalyHistory } from '../components/merchants/AnomalyHistory';
+import { RiskPosture } from '../components/merchants/RiskPosture';
 
 export default function Merchants() {
+  const [selectedId, setSelectedId] = useState<string>('merchant_001');
+
+  const selectedMerchant = useMemo(() =>
+    merchants.find(m => m.id === selectedId) ?? merchants[0],
+    [selectedId]
+  );
+
+  const selectedProfile = useMemo(() =>
+    merchantProfiles[selectedId] ?? merchantProfiles['merchant_001'],
+    [selectedId]
+  );
+
+  const activityData = useMemo(() => generateActivityData(), []);
+
+  const handleSelect = useCallback((id: string) => {
+    setSelectedId(id);
+  }, []);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const currentIdx = merchants.findIndex(m => m.id === selectedId);
+        if (e.key === 'ArrowDown') {
+          const next = currentIdx < merchants.length - 1 ? currentIdx + 1 : 0;
+          setSelectedId(merchants[next].id);
+        } else {
+          const prev = currentIdx > 0 ? currentIdx - 1 : merchants.length - 1;
+          setSelectedId(merchants[prev].id);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedId]);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-7xl mx-auto"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
     >
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-sus-green/20 flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-sus-green" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Merchants</h1>
-            <p className="text-sus-text-dim text-sm font-mono">
-              MERCHANT PORTFOLIO MANAGEMENT
-            </p>
-          </div>
-        </div>
-        <p className="text-sus-text-dim max-w-2xl">
-          Monitor merchant activity, risk levels, and transaction patterns.
-          View individual merchant profiles and historical performance.
-        </p>
-      </div>
+      <MerchantsHeader />
 
-      {/* Coming Soon Card */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="bg-sus-surface border border-sus-border rounded-2xl p-12 text-center"
-      >
-        <div className="w-16 h-16 rounded-full bg-sus-green/10 flex items-center justify-center mx-auto mb-6">
-          <Users className="w-8 h-8 text-sus-green" />
+      {/* Main content area */}
+      <div className="px-8 max-w-[1600px] mx-auto pb-24">
+        <div className="flex gap-8">
+          {/* Left: Merchant Directory */}
+          <div className="w-[240px] flex-shrink-0 hidden lg:block">
+            <div className="sticky top-24">
+              <MerchantDirectory
+                merchants={merchantDirectory}
+                selectedId={selectedId}
+                onSelect={handleSelect}
+              />
+            </div>
+          </div>
+
+          {/* Mobile directory */}
+          <div className="lg:hidden w-full mb-6">
+            <MerchantDirectory
+              merchants={merchantDirectory}
+              selectedId={selectedId}
+              onSelect={handleSelect}
+            />
+          </div>
+
+          {/* Right: Profile content */}
+          <div className="flex-1 min-w-0">
+            <motion.div
+              key={selectedId}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35 }}
+            >
+              {/* Profile Hero */}
+              <div className="mb-10">
+                <MerchantProfileHero merchant={selectedMerchant} profile={selectedProfile} />
+              </div>
+
+              {/* Divider */}
+              <div className="h-px bg-[#1a1f2e] mb-10" />
+
+              {/* Behavioral Fingerprint */}
+              <div className="mb-12">
+                <BehavioralFingerprint dimensions={selectedProfile.behavioralDimensions} />
+              </div>
+
+              {/* What Changed */}
+              <div className="mb-12">
+                <BehaviorChange dimensions={selectedProfile.behavioralDimensions} />
+              </div>
+
+              {/* Divider */}
+              <div className="h-px bg-[#1a1f2e] mb-10" />
+
+              {/* Activity Evolution */}
+              <div className="mb-12">
+                <MerchantActivity
+                  data={activityData}
+                  merchantId={selectedId}
+                />
+              </div>
+
+              {/* Anomaly History */}
+              <div className="mb-12">
+                <AnomalyHistory entries={selectedProfile.anomalyHistory} />
+              </div>
+
+              {/* Risk Posture */}
+              <div className="mb-8">
+                <RiskPosture profile={selectedProfile} />
+              </div>
+            </motion.div>
+          </div>
         </div>
-        <h3 className="text-xl font-semibold mb-2">Coming in Next Milestone</h3>
-        <p className="text-sus-text-dim max-w-md mx-auto">
-          Merchant portfolio management with individual profiles,
-          risk assessments, and transaction history analysis.
-        </p>
-        <div className="mt-6 flex items-center justify-center gap-4 text-xs font-mono text-sus-text-dim">
-          <span className="flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
-            Merchant Profiles
-          </span>
-          <span>•</span>
-          <span>Risk Assessment</span>
-          <span>•</span>
-          <span>Transaction History</span>
-        </div>
-      </motion.div>
+      </div>
     </motion.div>
   );
 }

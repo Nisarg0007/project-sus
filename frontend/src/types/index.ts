@@ -193,3 +193,59 @@ export interface FullIncident {
 
 // Incident queue filter
 export type IncidentSeverityFilter = 'all' | 'critical' | 'high' | 'review';
+
+// Merchant behavioral dimension
+export interface BehavioralDimension {
+  key: string;
+  label: string;
+  baselineNormal: number;
+  baselineCurrent: number;
+  unit: string;
+  normalRange: [number, number];
+  currentRange: [number, number];
+  signalType: 'fraud' | 'organic' | 'neutral';
+  changePercent: number;
+}
+
+// Merchant anomaly history entry
+export interface MerchantAnomalyEntry {
+  id: string;
+  date: string;
+  dateFormatted: string;
+  status: 'organic_spike' | 'fraud_spike' | 'review_required';
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  headline: string;
+  summary: string;
+  fraudProbability: number;
+  confidence: number;
+  confidenceBand: 'high_confidence' | 'ambiguous' | 'low_confidence';
+  evidenceSignals: BehavioralEvidence[];
+}
+
+// Full merchant profile
+export interface MerchantProfile {
+  merchantId: string;
+  riskPosture: 'normal' | 'watch' | 'high_attention';
+  riskLabel: string;
+  summary: string;
+  totalWindows: number;
+  spikeCount: number;
+  fraudCount: number;
+  organicCount: number;
+  reviewCount: number;
+  behavioralDimensions: BehavioralDimension[];
+  anomalyHistory: MerchantAnomalyEntry[];
+}
+
+// Merchant directory item
+export interface MerchantDirectoryItem {
+  id: string;
+  name: string;
+  dailyVolume: number;
+  riskLevel: 'low' | 'medium' | 'high';
+  statusLabel: string;
+  statusColor: string;
+  incidentCount: number;
+  riskLabel: string;
+  riskColor: string;
+}
