@@ -74,3 +74,21 @@ logs/
 
 #docs
 docs/validation_outputs/
+
+# Frontend dependencies
+frontend/node_modules/
+
+# Frontend build output
+frontend/dist/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Environment
+.env
+.venv/
+venv/
+
+# OS
+.DS_Store

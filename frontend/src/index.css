@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sus-bg: #080B12;
+  --sus-bg-alt: #0D111A;
+  --sus-surface: #111827;
+  --sus-surface-light: #1f2937;
+  --sus-border: #1a1f2e;
+  --sus-text: #F3F4F6;
+  --sus-text-dim: #8A94A6;
+  --sus-cyan: #38BDF8;
+  --sus-blue: #3b82f6;
+  --sus-green: #34D399;
+  --sus-amber: #FBBF24;
+  --sus-red: #FF5C5C;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--sus-bg);
+  color: var(--sus-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Subtle dot grid texture */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.03;
+  background-image: radial-gradient(circle, #38BDF8 0.5px, transparent 0.5px);
+  background-size: 32px 32px;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--sus-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sus-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2a3040;
+}
+
+/* Selection color */
+::selection {
+  background-color: rgba(56, 189, 248, 0.2);
+  color: var(--sus-text);
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
