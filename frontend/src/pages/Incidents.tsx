@@ -1,15 +1,28 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import { IncidentSeverityFilter, FullIncident } from '../types';
 import { fullIncidents } from '../data/mockData';
+import { useInvestigation } from '../context/InvestigationContext';
 import { IncidentsHeader } from '../components/incidents/IncidentsHeader';
 import { PriorityStrip } from '../components/incidents/PriorityStrip';
 import { IncidentQueue } from '../components/incidents/IncidentQueue';
 import { IncidentInvestigation } from '../components/incidents/IncidentInvestigation';
 
 export default function Incidents() {
-  const [selectedId, setSelectedId] = useState<string | null>(fullIncidents[0]?.id ?? null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { setIncident } = useInvestigation();
+  const urlIncident = searchParams.get('incident');
+  const [selectedId, setSelectedId] = useState<string | null>(urlIncident ?? fullIncidents[0]?.id ?? null);
   const [filter, setFilter] = useState<IncidentSeverityFilter>('all');
+
+  // Sync from URL params
+  useEffect(() => {
+    if (urlIncident && fullIncidents.find(i => i.id === urlIncident)) {
+      setSelectedId(urlIncident);
+      setIncident(urlIncident);
+    }
+  }, [urlIncident, setIncident]);
 
   const selectedIncident = useMemo(() => {
     return fullIncidents.find(i => i.id === selectedId) ?? null;
@@ -20,8 +33,15 @@ export default function Incidents() {
   const reviewCount = useMemo(() => fullIncidents.filter(i => i.predictedCause === 'review_required').length, []);
 
   const handleSelect = useCallback((incident: FullIncident) => {
-    setSelectedId(prev => prev === incident.id ? null : incident.id);
-  }, []);
+    const next = selectedId === incident.id ? null : incident.id;
+    setSelectedId(next);
+    setIncident(next);
+    if (next) {
+      setSearchParams({ incident: next }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  }, [selectedId, setIncident, setSearchParams]);
 
   // Keyboard navigation
   useEffect(() => {

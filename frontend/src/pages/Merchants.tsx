@@ -1,6 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import { merchants, merchantDirectory, merchantProfiles, generateActivityData } from '../data/mockData';
+import { useInvestigation } from '../context/InvestigationContext';
 import { MerchantsHeader } from '../components/merchants/MerchantsHeader';
 import { MerchantDirectory } from '../components/merchants/MerchantDirectory';
 import { MerchantProfileHero } from '../components/merchants/MerchantProfileHero';
@@ -11,7 +13,18 @@ import { AnomalyHistory } from '../components/merchants/AnomalyHistory';
 import { RiskPosture } from '../components/merchants/RiskPosture';
 
 export default function Merchants() {
-  const [selectedId, setSelectedId] = useState<string>('merchant_001');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { setMerchant } = useInvestigation();
+  const urlMerchant = searchParams.get('merchant');
+  const [selectedId, setSelectedId] = useState<string>(urlMerchant ?? 'merchant_001');
+
+  // Sync from URL params
+  useEffect(() => {
+    if (urlMerchant && merchants.find(m => m.id === urlMerchant)) {
+      setSelectedId(urlMerchant);
+      setMerchant(urlMerchant);
+    }
+  }, [urlMerchant, setMerchant]);
 
   const selectedMerchant = useMemo(() =>
     merchants.find(m => m.id === selectedId) ?? merchants[0],
@@ -27,7 +40,9 @@ export default function Merchants() {
 
   const handleSelect = useCallback((id: string) => {
     setSelectedId(id);
-  }, []);
+    setMerchant(id);
+    setSearchParams({ merchant: id }, { replace: true });
+  }, [setMerchant, setSearchParams]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -119,7 +134,7 @@ export default function Merchants() {
 
               {/* Anomaly History */}
               <div className="mb-12">
-                <AnomalyHistory entries={selectedProfile.anomalyHistory} />
+                <AnomalyHistory entries={selectedProfile.anomalyHistory} merchantId={selectedId} />
               </div>
 
               {/* Risk Posture */}

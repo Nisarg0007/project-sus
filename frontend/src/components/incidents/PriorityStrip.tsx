@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ExternalLink } from 'lucide-react';
 import { FullIncident } from '../../types';
+import { useNavigation } from '../../hooks/useNavigation';
 
 interface PriorityStripProps {
   incidents: FullIncident[];
@@ -9,6 +10,7 @@ interface PriorityStripProps {
 }
 
 export function PriorityStrip({ incidents, selectedId, onSelect }: PriorityStripProps) {
+  const { navigateToMerchantFromActivity } = useNavigation();
   // Show top critical/high incidents
   const priorityIncidents = incidents
     .filter(i => i.severity === 'critical' || i.severity === 'high')
@@ -47,9 +49,16 @@ export function PriorityStrip({ incidents, selectedId, onSelect }: PriorityStrip
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[10px] font-mono text-[#FF5C5C] tracking-wider">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigateToMerchantFromActivity(incident.merchantId);
+                    }}
+                    className="flex items-center gap-1 text-[10px] font-mono text-[#FF5C5C] tracking-wider hover:text-[#F3F4F6] transition-colors"
+                  >
                     {incident.merchantName}
-                  </span>
+                    <ExternalLink className="w-2.5 h-2.5 opacity-50" />
+                  </button>
                 </div>
                 <p className="text-sm text-[#F3F4F6] leading-snug mb-3 line-clamp-2">
                   {incident.headline}

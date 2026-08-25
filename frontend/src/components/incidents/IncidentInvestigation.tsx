@@ -2,7 +2,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FullIncident, BehavioralEvidence } from '../../types';
 import { IncidentTimeline } from './IncidentTimeline';
 import { RecommendedAction } from './RecommendedAction';
-import { AlertTriangle, CheckCircle, HelpCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink } from 'lucide-react';
+import { useNavigation } from '../../hooks/useNavigation';
 
 interface IncidentInvestigationProps {
   incident: FullIncident | null;
@@ -67,9 +68,7 @@ export function IncidentInvestigation({ incident }: IncidentInvestigationProps) 
 
         {/* Merchant + Headline */}
         <div className="mb-8">
-          <div className="text-xs font-mono text-[#8A94A6] tracking-wider mb-2">
-            {incident.merchantName}
-          </div>
+          <MerchantLink merchantId={incident.merchantId} merchantName={incident.merchantName} />
           <h2 className="text-xl sm:text-2xl font-light text-[#F3F4F6] leading-snug">
             &ldquo;{incident.headline}&rdquo;
           </h2>
@@ -314,5 +313,18 @@ function EvidenceSignal({ signal, index }: { signal: BehavioralEvidence; index: 
         {signal.description}
       </p>
     </motion.div>
+  );
+}
+
+function MerchantLink({ merchantId, merchantName }: { merchantId: string; merchantName: string }) {
+  const { navigateToMerchantFromActivity } = useNavigation();
+  return (
+    <button
+      onClick={() => navigateToMerchantFromActivity(merchantId)}
+      className="flex items-center gap-1.5 text-xs font-mono text-[#8A94A6] tracking-wider hover:text-[#38BDF8] transition-colors mb-2"
+    >
+      {merchantName}
+      <ExternalLink className="w-3 h-3 opacity-50" />
+    </button>
   );
 }

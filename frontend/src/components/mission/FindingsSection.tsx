@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, AlertTriangle, CheckCircle, HelpCircle } from 'lucide-react';
+import { ArrowRight, AlertTriangle, CheckCircle, HelpCircle, ExternalLink } from 'lucide-react';
 import { InvestigationAnomaly } from '../../types';
+import { useNavigation } from '../../hooks/useNavigation';
 
 interface FindingsSectionProps {
   onSelectAnomaly: (anomaly: InvestigationAnomaly) => void;
@@ -61,6 +62,8 @@ const findings: Array<{
 import { investigationAnomalies } from '../../data/mockData';
 
 export function FindingsSection({ onSelectAnomaly }: FindingsSectionProps) {
+  const { navigateToMerchant, navigateToIncidentFromActivity } = useNavigation();
+
   return (
     <section className="py-16 px-8 max-w-[1600px] mx-auto">
       {/* Section header */}
@@ -108,11 +111,18 @@ export function FindingsSection({ onSelectAnomaly }: FindingsSectionProps) {
                   </span>
                 </div>
 
-                {/* Merchant */}
+                {/* Merchant — clickable to Merchant Intelligence */}
                 <div className="mb-4">
-                  <span className="text-sm font-mono text-[#8A94A6] tracking-wider">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigateToMerchant(anomaly.merchantId);
+                    }}
+                    className="flex items-center gap-1.5 text-sm font-mono text-[#8A94A6] tracking-wider hover:text-[#38BDF8] transition-colors"
+                  >
                     {anomaly.merchantName}
-                  </span>
+                    <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                  </button>
                 </div>
 
                 {/* Summary */}
@@ -135,14 +145,22 @@ export function FindingsSection({ onSelectAnomaly }: FindingsSectionProps) {
                   ))}
                 </div>
 
-                {/* CTA */}
-                <div
+                {/* CTA — navigates to incident if available */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (anomaly.incidentId) {
+                      navigateToIncidentFromActivity(anomaly.incidentId, anomaly.merchantId);
+                    } else {
+                      onSelectAnomaly(anomaly);
+                    }
+                  }}
                   className="flex items-center gap-2 text-xs font-mono tracking-wider group-hover:gap-3 transition-all duration-200"
                   style={{ color: finding.accentColor }}
                 >
                   <span>INVESTIGATE</span>
                   <ArrowRight className="w-3.5 h-3.5" />
-                </div>
+                </button>
               </div>
             </motion.div>
           );

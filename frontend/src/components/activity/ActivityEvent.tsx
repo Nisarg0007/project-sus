@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle, HelpCircle, ArrowRight } from 'lucide-react';
+import { AlertTriangle, CheckCircle, HelpCircle, ArrowRight, ExternalLink } from 'lucide-react';
 import { ActivityEvent as ActivityEventType } from '../../types';
+import { useNavigation } from '../../hooks/useNavigation';
 
 interface ActivityEventProps {
   event: ActivityEventType;
@@ -42,6 +43,7 @@ function formatDate(dateStr: string): string {
 
 export function ActivityEventItem({ event, isSelected, onClick, index }: ActivityEventProps) {
   const config = statusConfig[event.status];
+  const { navigateToMerchantFromActivity } = useNavigation();
 
   return (
     <motion.button
@@ -69,9 +71,18 @@ export function ActivityEventItem({ event, isSelected, onClick, index }: Activit
         </span>
       </div>
 
-      {/* Merchant */}
-      <div className="text-xs font-mono text-[#8A94A6] tracking-wider mb-2">
-        {event.merchantName}
+      {/* Merchant — clickable to Merchant Intelligence */}
+      <div className="mb-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            navigateToMerchantFromActivity(event.merchantId);
+          }}
+          className="flex items-center gap-1.5 text-xs font-mono text-[#8A94A6] tracking-wider hover:text-[#38BDF8] transition-colors"
+        >
+          {event.merchantName}
+          <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover:opacity-60 transition-opacity" />
+        </button>
       </div>
 
       {/* Summary */}

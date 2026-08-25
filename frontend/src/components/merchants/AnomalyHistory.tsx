@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ExternalLink } from 'lucide-react';
 import { MerchantAnomalyEntry, BehavioralEvidence } from '../../types';
+import { useNavigation } from '../../hooks/useNavigation';
 
 interface AnomalyHistoryProps {
   entries: MerchantAnomalyEntry[];
+  merchantId: string;
 }
 
 const statusConfig: Record<string, { color: string; label: string }> = {
@@ -19,8 +22,9 @@ const severityLabels: Record<string, string> = {
   low: 'LOW',
 };
 
-export function AnomalyHistory({ entries }: AnomalyHistoryProps) {
+export function AnomalyHistory({ entries, merchantId }: AnomalyHistoryProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { navigateToActivity } = useNavigation();
 
   if (entries.length === 0) {
     return (
@@ -125,11 +129,23 @@ export function AnomalyHistory({ entries }: AnomalyHistoryProps) {
                         </p>
 
                         {/* Evidence signals */}
-                        <div className="space-y-2">
+                        <div className="space-y-2 mb-3">
                           {entry.evidenceSignals.map(signal => (
                             <EvidenceRow key={signal.feature} signal={signal} />
                           ))}
                         </div>
+
+                        {/* Inspect activity link */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigateToActivity(merchantId);
+                          }}
+                          className="flex items-center gap-1.5 text-[10px] font-mono text-[#38BDF8] tracking-wider hover:gap-2.5 transition-all"
+                        >
+                          INSPECT ACTIVITY
+                          <ExternalLink className="w-3 h-3" />
+                        </button>
                       </div>
                     </motion.div>
                   )}

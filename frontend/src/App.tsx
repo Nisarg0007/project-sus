@@ -1,5 +1,8 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { InvestigationProvider } from './context/InvestigationContext';
 import { Layout } from './components/layout/Layout';
+import { CommandPalette } from './components/shared/CommandPalette';
 import MissionControl from './pages/MissionControl';
 import Activity from './pages/Activity';
 import Incidents from './pages/Incidents';
@@ -8,6 +11,31 @@ import Merchants from './pages/Merchants';
 function App() {
   return (
     <Router>
+      <InvestigationProvider>
+        <AppContent />
+      </InvestigationProvider>
+    </Router>
+  );
+}
+
+function AppContent() {
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const navigate = useNavigate();
+
+  // Global keyboard shortcut for command palette
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  return (
+    <>
       <Layout>
         <Routes>
           <Route path="/" element={<MissionControl />} />
@@ -16,7 +44,15 @@ function App() {
           <Route path="/merchants" element={<Merchants />} />
         </Routes>
       </Layout>
-    </Router>
+      <CommandPalette
+        isOpen={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={(path) => {
+          navigate(path);
+          setPaletteOpen(false);
+        }}
+      />
+    </>
   );
 }
 

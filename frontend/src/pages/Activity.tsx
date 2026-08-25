@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import { ActivityEvent as ActivityEventType, TimeRange } from '../types';
 import { generateActivityData, activityEvents } from '../data/mockData';
 import { ActivityHeader } from '../components/activity/ActivityHeader';
@@ -8,9 +9,22 @@ import { ActivityFeed } from '../components/activity/ActivityFeed';
 import { ActivityDetail } from '../components/activity/ActivityDetail';
 
 export default function Activity() {
-  const [selectedMerchant, setSelectedMerchant] = useState('all');
+  const [searchParams] = useSearchParams();
+  const urlMerchant = searchParams.get('merchant');
+  const urlEvent = searchParams.get('event');
+
+  const [selectedMerchant, setSelectedMerchant] = useState(urlMerchant ?? 'all');
   const [timeRange, setTimeRange] = useState<TimeRange>('45d');
   const [selectedEvent, setSelectedEvent] = useState<ActivityEventType | null>(null);
+
+  // Sync from URL params
+  useEffect(() => {
+    if (urlMerchant) setSelectedMerchant(urlMerchant);
+    if (urlEvent) {
+      const match = activityEvents.find(e => e.id === urlEvent);
+      if (match) setSelectedEvent(match);
+    }
+  }, [urlMerchant, urlEvent]);
 
   const timelineData = useMemo(() => generateActivityData(), []);
 
@@ -145,6 +159,7 @@ export default function Activity() {
 
 // Inline detail panel for desktop
 import { AlertTriangle, CheckCircle, HelpCircle, ArrowRight } from 'lucide-react';
+import { useNavigation } from '../hooks/useNavigation';
 
 const statusDisplay: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
   fraud_spike: { color: '#FF5C5C', label: 'FRAUD SPIKE', icon: <AlertTriangle className="w-4 h-4" /> },
@@ -154,6 +169,7 @@ const statusDisplay: Record<string, { color: string; label: string; icon: React.
 
 function InlineDetail({ event }: { event: ActivityEventType }) {
   const status = statusDisplay[event.status];
+  const { navigateToIncidentFromActivity } = useNavigation();
 
   return (
     <div className="bg-[#0D111A] border border-[#1a1f2e] rounded-sm overflow-hidden">
@@ -245,9 +261,16 @@ function InlineDetail({ event }: { event: ActivityEventType }) {
         </div>
 
         {/* CTA */}
-        <button className="w-full flex items-center justify-center gap-2 py-2.5 text-[10px] font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 rounded-sm transition-colors">
-          <span>VIEW FULL INCIDENT</span>
-          <ArrowRight className="w-3 h-3" />
+        <button
+          onClick={() => {
+            if (event.incidentId) {
+              navigateToIncidentFromActivity(event.incidentId, event.merchantId);
+            }
+          }}
+          className="w-full flex items-center justify-center gap-2 py-2.5 text-[10px] font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 rounded-sm transition-colors"
+        >
+          <span>{event.incidentId ? 'VIEW FULL INCIDENT' : 'NO ASSOCIATED INCIDENT'}</span>
+          {event.incidentId && <ArrowRight className="w-3 h-3" />}
         </button>
       </div>
     </div>

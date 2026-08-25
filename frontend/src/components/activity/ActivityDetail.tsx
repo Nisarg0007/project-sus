@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, AlertTriangle, CheckCircle, HelpCircle } from 'lucide-react';
 import { ActivityEvent } from '../../types';
+import { useNavigation } from '../../hooks/useNavigation';
 
 interface ActivityDetailProps {
   event: ActivityEvent | null;
@@ -241,12 +242,7 @@ function DetailContent({ event, onClose }: { event: ActivityEvent; onClose: () =
       </div>
 
       {/* Footer CTA */}
-      <div className="px-6 py-4 border-t border-[#1a1f2e]">
-        <button className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 rounded-sm transition-colors">
-          <span>VIEW FULL INCIDENT</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      <FooterCTA event={event} />
     </div>
   );
 }
@@ -256,6 +252,27 @@ function DetailRow({ label, value, valueColor = '#F3F4F6' }: { label: string; va
     <div className="flex items-center justify-between py-1.5">
       <span className="text-xs text-[#8A94A6]">{label}</span>
       <span className="text-sm font-mono" style={{ color: valueColor }}>{value}</span>
+    </div>
+  );
+}
+
+function FooterCTA({ event }: { event: ActivityEvent }) {
+  const { navigateToIncidentFromActivity } = useNavigation();
+  const hasIncident = !!event.incidentId;
+
+  return (
+    <div className="px-6 py-4 border-t border-[#1a1f2e]">
+      <button
+        onClick={() => {
+          if (hasIncident) {
+            navigateToIncidentFromActivity(event.incidentId!, event.merchantId);
+          }
+        }}
+        className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 rounded-sm transition-colors"
+      >
+        <span>{hasIncident ? 'VIEW FULL INCIDENT' : 'NO ASSOCIATED INCIDENT'}</span>
+        {hasIncident && <ArrowRight className="w-3.5 h-3.5" />}
+      </button>
     </div>
   );
 }
