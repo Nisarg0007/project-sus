@@ -154,3 +154,42 @@ export type ActivityFilter = 'all' | 'fraud' | 'organic' | 'review';
 
 // Activity time range
 export type TimeRange = '7d' | '14d' | '30d' | '45d';
+
+// Incident timeline step
+export interface IncidentTimelineStep {
+  label: string;
+  detail: string;
+  color: string;
+}
+
+// Full incident with investigation data
+export interface FullIncident {
+  id: string;
+  merchantId: string;
+  merchantName: string;
+  date: string;
+  dateFormatted: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  status: 'open' | 'investigating' | 'resolved' | 'dismissed';
+  predictedCause: 'organic_spike' | 'fraud_spike' | 'review_required';
+  fraudProbability: number;
+  confidence: number;
+  confidenceBand: 'high_confidence' | 'ambiguous' | 'low_confidence';
+  anomalyScore: number;
+  transactionCount: number;
+  baselineVolume: number;
+  volumeMultiple: number;
+  zScore: number;
+  headline: string;
+  summary: string;
+  classificationSummary: string;
+  recommendedAction: string;
+  actionType: 'immediate' | 'review' | 'monitor';
+  behavioralEvidence: BehavioralEvidence[];
+  modelContributions: ModelContribution[];
+  timeline: IncidentTimelineStep[];
+  topSignals: string[];
+}
+
+// Incident queue filter
+export type IncidentSeverityFilter = 'all' | 'critical' | 'high' | 'review';
