@@ -65,10 +65,10 @@ export function FindingsSection({ onSelectAnomaly }: FindingsSectionProps) {
   const { navigateToMerchant, navigateToIncidentFromActivity } = useNavigation();
 
   return (
-    <section className="py-16 px-8 max-w-[1600px] mx-auto">
+    <section className="py-12 lg:py-16 px-[var(--content-px)] max-w-[var(--content-max)] mx-auto">
       {/* Section header */}
       <div className="flex items-center gap-4 mb-12">
-        <span className="text-xs font-mono text-[#8A94A6] tracking-[0.2em]">
+        <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em]">
           WHAT SUS FOUND
         </span>
         <div className="h-px flex-1 bg-[#1a1f2e]" />

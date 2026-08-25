@@ -30,7 +30,7 @@ export function ActivityHeader({
   const selectedTimeRangeLabel = timeRanges.find(r => r.value === timeRange)?.label ?? 'LAST 45 DAYS';
 
   return (
-    <section className="py-16 px-8 max-w-[1600px] mx-auto">
+    <section className="py-12 lg:py-16 px-[var(--content-px)] max-w-[var(--content-max)] mx-auto">
       {/* Top label */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -38,7 +38,7 @@ export function ActivityHeader({
         transition={{ duration: 0.6 }}
         className="flex items-center gap-4 mb-8"
       >
-        <span className="text-xs font-mono text-[#8A94A6] tracking-[0.2em]">
+        <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.15em]">
           ACTIVITY INTELLIGENCE
         </span>
         <div className="h-px flex-1 bg-[#1a1f2e]" />
@@ -52,7 +52,7 @@ export function ActivityHeader({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1 }}
-            className="text-3xl sm:text-4xl lg:text-5xl font-light leading-[1.15] tracking-tight mb-4"
+            className="text-3xl sm:text-4xl lg:text-5xl font-light leading-[1.15] tracking-tight mb-3"
           >
             <span className="text-[#F3F4F6]">Every spike tells </span>
             <span className="text-[#F3F4F6] font-normal">a different story</span>
@@ -63,7 +63,7 @@ export function ActivityHeader({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="text-[#8A94A6] text-sm sm:text-base leading-relaxed"
+            className="text-[#8A94A6] text-[15px] leading-relaxed"
           >
             Explore transaction behavior across merchants and identify where activity
             diverges from normal patterns.

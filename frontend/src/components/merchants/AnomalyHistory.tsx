@@ -30,7 +30,7 @@ export function AnomalyHistory({ entries, merchantId }: AnomalyHistoryProps) {
     return (
       <div>
         <div className="flex items-center gap-4 mb-4">
-          <span className="text-[10px] font-mono text-[#8A94A6] tracking-[0.2em]">ANOMALY HISTORY</span>
+          <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em]">ANOMALY HISTORY</span>
           <div className="h-px flex-1 bg-[#1a1f2e]" />
         </div>
         <div className="bg-[#0D111A] border border-[#1a1f2e] rounded-sm p-8 text-center">
@@ -44,7 +44,7 @@ export function AnomalyHistory({ entries, merchantId }: AnomalyHistoryProps) {
   return (
     <div>
       <div className="flex items-center gap-4 mb-4">
-        <span className="text-[10px] font-mono text-[#8A94A6] tracking-[0.2em]">ANOMALY HISTORY</span>
+        <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em]">ANOMALY HISTORY</span>
         <div className="h-px flex-1 bg-[#1a1f2e]" />
         <span className="text-[10px] font-mono text-[#8A94A6]/60 tracking-wider">
           {entries.length} EVENT{entries.length !== 1 ? 'S' : ''}

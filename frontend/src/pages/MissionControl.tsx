@@ -38,7 +38,7 @@ export default function MissionControl() {
       <ProductHero />
 
       {/* Activity Visualization */}
-      <div className="px-8 max-w-[1600px] mx-auto py-4">
+      <div className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto py-4">
         <ActivityVisualization
           data={timelineData}
           selectedAnomalyId={selectedAnomaly.id}
@@ -50,8 +50,8 @@ export default function MissionControl() {
       <FindingsSection onSelectAnomaly={setSelectedAnomaly} />
 
       {/* Divider */}
-      <div className="max-w-[1600px] mx-auto px-8">
-        <div className="h-px bg-[#1a1f2e]" />
+      <div className="max-w-[var(--content-max)] mx-auto px-[var(--content-px)]">
+        <div className="h-px bg-[#1a1f2e]/60" />
       </div>
 
       {/* Investigation Deep Dive — visible when an anomaly is selected */}

@@ -15,14 +15,14 @@ export function Layout({ children }: LayoutProps) {
       <Navigation />
 
       {/* Main Content with page transitions */}
-      <main className="pt-20">
+      <main className="pt-16">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
           >
             {children}
           </motion.div>

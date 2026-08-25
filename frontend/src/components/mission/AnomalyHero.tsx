@@ -16,7 +16,7 @@ export function AnomalyHero({ anomaly, onSelectAnomaly }: AnomalyHeroProps) {
   };
 
   return (
-    <section className="relative py-16 px-8 max-w-[1600px] mx-auto">
+    <section className="relative py-12 lg:py-16 px-[var(--content-px)] max-w-[var(--content-max)] mx-auto">
       {/* Background accent */}
       <div 
         className="absolute top-0 left-0 w-full h-full opacity-5"
@@ -35,7 +35,7 @@ export function AnomalyHero({ anomaly, onSelectAnomaly }: AnomalyHeroProps) {
             transition={{ duration: 0.5 }}
             className="flex items-center gap-4 mb-8"
           >
-            <span className="text-xs font-mono text-[#8A94A6] tracking-widest">
+            <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em]">
               MISSION / LIVE INVESTIGATION
             </span>
             <div className="h-px flex-1 bg-[#1a1f2e]" />
@@ -113,7 +113,7 @@ export function AnomalyHero({ anomaly, onSelectAnomaly }: AnomalyHeroProps) {
           className="lg:col-span-5"
         >
           <div className="border border-[#1a1f2e] rounded-sm p-8 bg-[#0D111A]/50">
-            <span className="text-xs font-mono text-[#8A94A6] tracking-widest block mb-6">
+            <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em] block mb-6">
               CLASSIFICATION
             </span>
             
@@ -167,7 +167,7 @@ export function AnomalyHero({ anomaly, onSelectAnomaly }: AnomalyHeroProps) {
 
           {/* Anomaly selector */}
           <div className="mt-6">
-            <span className="text-xs font-mono text-[#8A94A6] tracking-widest block mb-3">
+            <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em] block mb-3">
               SELECT ANOMALY
             </span>
             <div className="flex gap-2">

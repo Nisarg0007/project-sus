@@ -73,7 +73,7 @@ export default function Merchants() {
       <MerchantsHeader />
 
       {/* Main content area */}
-      <div className="px-8 max-w-[1600px] mx-auto pb-24">
+      <div className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto pb-24">
         <div className="flex gap-8">
           {/* Left: Merchant Directory */}
           <div className="w-[240px] flex-shrink-0 hidden lg:block">

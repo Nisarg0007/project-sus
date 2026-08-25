@@ -12,10 +12,10 @@ interface NavItemConfig {
 }
 
 const navItems: NavItemConfig[] = [
-  { id: 'mission-control', label: 'MISSION', path: '/', icon: <Crosshair className="w-3.5 h-3.5" /> },
-  { id: 'activity', label: 'ACTIVITY', path: '/activity', icon: <Activity className="w-3.5 h-3.5" /> },
-  { id: 'incidents', label: 'INCIDENTS', path: '/incidents', icon: <AlertTriangle className="w-3.5 h-3.5" /> },
-  { id: 'merchants', label: 'MERCHANTS', path: '/merchants', icon: <Building2 className="w-3.5 h-3.5" /> },
+  { id: 'mission-control', label: 'Mission', path: '/', icon: <Crosshair className="w-3.5 h-3.5" /> },
+  { id: 'activity', label: 'Activity', path: '/activity', icon: <Activity className="w-3.5 h-3.5" /> },
+  { id: 'incidents', label: 'Incidents', path: '/incidents', icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+  { id: 'merchants', label: 'Merchants', path: '/merchants', icon: <Building2 className="w-3.5 h-3.5" /> },
 ];
 
 function ContextIndicator({ path }: { path: string }) {
@@ -29,16 +29,16 @@ function ContextIndicator({ path }: { path: string }) {
     const m = merchants.find(m => m.id === selectedMerchantId);
     text = m ? m.name : selectedMerchantId;
   } else if (path === '/incidents' && selectedIncidentId) {
-    text = selectedIncidentId.replace('INC-', '').substring(0, 20);
+    text = selectedIncidentId.replace('INC-', '').substring(0, 18);
   } else if (path === '/activity') {
-    text = 'LIVE';
+    text = 'Live feed';
   } else if (path === '/') {
-    text = 'OVERVIEW';
+    text = 'Overview';
   }
 
   if (!text) return null;
   return (
-    <span className="text-[8px] font-mono text-[#38BDF8]/60 tracking-wider block -mt-0.5">
+    <span className="text-[9px] font-mono text-[#38BDF8]/50 tracking-wider block -mt-0.5">
       {text}
     </span>
   );
@@ -48,22 +48,20 @@ export function Navigation() {
   const location = useLocation();
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-16 bg-[#080B12]/80 backdrop-blur-xl border-b border-[#1a1f2e] z-50">
-      <div className="max-w-[1600px] mx-auto px-8 h-full flex items-center justify-between">
+    <nav className="fixed top-0 left-0 right-0 h-16 bg-[#080B12]/90 backdrop-blur-xl border-b border-[#1a1f2e]/60 z-50">
+      <div className="max-w-[var(--content-max)] mx-auto px-[var(--content-px)] h-full flex items-center justify-between gap-8">
         {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center">
-            <span className="text-xl font-bold tracking-tight">
-              SUS
-            </span>
-            <span className="ml-3 text-xs font-mono text-[#8A94A6] tracking-widest hidden sm:block">
-              SPIKE UNDERSTANDING SYSTEM
-            </span>
-          </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="text-lg font-bold tracking-tight text-[#F3F4F6]">
+            SUS
+          </span>
+          <span className="text-[10px] font-mono text-[#8A94A6]/60 tracking-[0.15em] hidden lg:block">
+            SPIKE UNDERSTANDING SYSTEM
+          </span>
         </div>
 
         {/* Navigation Links */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
 
@@ -71,36 +69,46 @@ export function Navigation() {
               <NavLink
                 key={item.id}
                 to={item.path}
-                className={`px-4 py-1.5 text-sm font-medium tracking-wide transition-all duration-200 ${
-                  isActive
-                    ? 'text-[#F3F4F6]'
-                    : 'text-[#8A94A6] hover:text-[#F3F4F6]'
-                }`}
+                className="relative px-3 lg:px-4 py-5 text-[13px] font-medium tracking-wide transition-colors duration-200"
               >
                 <span className="flex items-center gap-2">
-                  <span className={isActive ? 'text-[#38BDF8]' : ''}>
+                  <span className={`transition-colors duration-200 ${isActive ? 'text-[#38BDF8]' : 'text-[#8A94A6]/60'}`}>
                     {item.icon}
                   </span>
-                  <span className="hidden md:inline">{item.label}</span>
+                  <span className={`hidden md:inline transition-colors duration-200 ${isActive ? 'text-[#F3F4F6]' : 'text-[#8A94A6] hover:text-[#F3F4F6]/80'}`}>
+                    {item.label}
+                  </span>
                 </span>
+                {/* Active indicator - subtle bottom line */}
+                {isActive && (
+                  <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-[#38BDF8] rounded-full" />
+                )}
                 <ContextIndicator path={item.path} />
               </NavLink>
             );
           })}
         </div>
 
-        {/* Right: Cmd+K hint + System Status */}
-        <div className="flex items-center gap-4">
+        {/* Right: Search control + Status */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Search control */}
           <button
             onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
-            className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] font-mono text-[#8A94A6] bg-[#0D111A] border border-[#1a1f2e] rounded-sm hover:border-[#2a3040] hover:text-[#F3F4F6] transition-colors"
+            className="flex items-center gap-2.5 pl-3 pr-2 py-1.5 text-[12px] text-[#8A94A6]/70 bg-[#0D111A]/80 border border-[#1a1f2e]/60 rounded-md hover:border-[#2a3040] hover:text-[#8A94A6] hover:bg-[#0D111A] transition-all duration-200 group min-w-[180px] lg:min-w-[220px]"
           >
-            <Search className="w-3 h-3" />
-            <span className="hidden sm:inline">⌘K</span>
+            <Search className="w-3.5 h-3.5 text-[#8A94A6]/50 group-hover:text-[#8A94A6] transition-colors flex-shrink-0" />
+            <span className="flex-1 text-left text-[11px] font-mono tracking-wide hidden sm:inline">
+              Search SUS...
+            </span>
+            <kbd className="hidden sm:inline text-[9px] font-mono text-[#8A94A6]/40 px-1.5 py-0.5 bg-[#111827]/80 border border-[#1a1f2e]/40 rounded">
+              <span className="hidden lg:inline">⌘</span>K
+            </kbd>
           </button>
-          <div className="flex items-center gap-2 text-xs font-mono">
+
+          {/* Status indicator */}
+          <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-[#34D399] animate-pulse" />
-            <span className="text-[#8A94A6] hidden lg:inline">OPERATIONAL</span>
+            <span className="text-[10px] font-mono text-[#8A94A6]/50 hidden xl:inline">OPERATIONAL</span>
           </div>
         </div>
       </div>

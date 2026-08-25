@@ -24,9 +24,9 @@ export function FinalVerdict({ anomaly }: FinalVerdictProps) {
   };
 
   return (
-    <section className="relative py-16 px-8 max-w-[1600px] mx-auto">
+    <section className="relative py-12 lg:py-16 px-[var(--content-px)] max-w-[var(--content-max)] mx-auto">
       <div className="flex items-center gap-4 mb-12">
-        <span className="text-xs font-mono text-[#8A94A6] tracking-widest">
+        <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em]">
           CONCLUSION
         </span>
         <div className="h-px flex-1 bg-[#1a1f2e]" />
@@ -41,7 +41,7 @@ export function FinalVerdict({ anomaly }: FinalVerdictProps) {
         {/* Left: Verdict */}
         <div className="lg:col-span-7">
           <div className="mb-8">
-            <span className="text-xs font-mono text-[#8A94A6] tracking-widest block mb-4">
+            <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em] block mb-4">
               SUS CONCLUSION
             </span>
             <div className="h-px bg-[#1a1f2e] mb-8" />
@@ -83,7 +83,7 @@ export function FinalVerdict({ anomaly }: FinalVerdictProps) {
 
           {/* Recommended action */}
           <div className="mb-8">
-            <span className="text-xs font-mono text-[#8A94A6] tracking-widest block mb-4">
+            <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em] block mb-4">
               RECOMMENDED ACTION
             </span>
             <p className="text-[#F3F4F6] text-lg leading-relaxed max-w-2xl">
@@ -108,7 +108,7 @@ export function FinalVerdict({ anomaly }: FinalVerdictProps) {
         {/* Right: Quick stats */}
         <div className="lg:col-span-5">
           <div className="bg-[#0D111A] border border-[#1a1f2e] rounded-sm p-8">
-            <span className="text-xs font-mono text-[#8A94A6] tracking-widest block mb-6">
+            <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em] block mb-6">
               INVESTIGATION SUMMARY
             </span>
 

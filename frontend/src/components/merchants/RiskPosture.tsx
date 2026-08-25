@@ -35,7 +35,7 @@ export function RiskPosture({ profile }: RiskPostureProps) {
   return (
     <div>
       <div className="flex items-center gap-4 mb-4">
-        <span className="text-[10px] font-mono text-[#8A94A6] tracking-[0.2em]">CURRENT RISK POSTURE</span>
+        <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em]">CURRENT RISK POSTURE</span>
         <div className="h-px flex-1 bg-[#1a1f2e]" />
       </div>
 

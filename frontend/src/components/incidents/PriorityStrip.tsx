@@ -17,7 +17,7 @@ export function PriorityStrip({ incidents, selectedId, onSelect }: PriorityStrip
     .slice(0, 3);
 
   return (
-    <section className="px-8 max-w-[1600px] mx-auto mb-8">
+    <section className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto mb-8">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}

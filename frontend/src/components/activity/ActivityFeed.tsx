@@ -44,7 +44,7 @@ export function ActivityFeed({ events, selectedEventId, onSelectEvent }: Activit
       {/* Header + filters */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <span className="text-xs font-mono text-[#8A94A6] tracking-[0.2em]">
+          <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em]">
             EVENT FEED
           </span>
           <div className="h-px w-12 bg-[#1a1f2e]" />

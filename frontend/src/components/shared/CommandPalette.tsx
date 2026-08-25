@@ -16,6 +16,7 @@ interface CommandItem {
   path: string;
   icon: React.ReactNode;
   color: string;
+  meta?: string;
 }
 
 export function CommandPalette({ isOpen, onClose, onNavigate }: CommandPaletteProps) {
@@ -40,15 +41,17 @@ export function CommandPalette({ isOpen, onClose, onNavigate }: CommandPalettePr
         path: `/merchants?merchant=${m.id}`,
         icon: <Building2 className="w-3.5 h-3.5" />,
         color: '#34D399',
+        meta: m.riskLevel === 'high' ? 'HIGH RISK' : m.riskLevel === 'medium' ? 'MEDIUM' : 'LOW RISK',
       })),
       // Incidents
       ...fullIncidents.map(i => ({
         id: `incident-${i.id}`,
-        label: `${i.headline} — ${i.merchantName}`,
+        label: i.headline,
         category: 'Incidents',
         path: `/incidents?incident=${i.id}`,
         icon: <AlertTriangle className="w-3.5 h-3.5" />,
         color: i.severity === 'critical' ? '#FF5C5C' : i.severity === 'high' ? '#FBBF24' : '#38BDF8',
+        meta: `${i.merchantName} · ${i.severity.toUpperCase()}`,
       })),
     ];
     return items;
@@ -134,8 +137,8 @@ export function CommandPalette({ isOpen, onClose, onNavigate }: CommandPalettePr
           >
             <div className="bg-[#0D111A] border border-[#1a1f2e] rounded-sm shadow-2xl overflow-hidden">
               {/* Search input */}
-              <div className="flex items-center gap-3 px-5 py-4 border-b border-[#1a1f2e]">
-                <Search className="w-4 h-4 text-[#8A94A6] flex-shrink-0" />
+              <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#1a1f2e]/60">
+                <Search className="w-4 h-4 text-[#8A94A6]/60 flex-shrink-0" />
                 <input
                   ref={inputRef}
                   type="text"
@@ -143,9 +146,9 @@ export function CommandPalette({ isOpen, onClose, onNavigate }: CommandPalettePr
                   onChange={(e) => { setQuery(e.target.value); setSelectedIndex(0); }}
                   onKeyDown={handleKeyDown}
                   placeholder="Search pages, merchants, incidents..."
-                  className="flex-1 bg-transparent text-sm text-[#F3F4F6] placeholder:text-[#8A94A6]/50 outline-none font-mono"
+                  className="flex-1 bg-transparent text-[14px] text-[#F3F4F6] placeholder:text-[#8A94A6]/40 outline-none"
                 />
-                <kbd className="text-[10px] font-mono text-[#8A94A6] px-1.5 py-0.5 bg-[#111827] border border-[#1a1f2e] rounded-sm">
+                <kbd className="text-[10px] font-mono text-[#8A94A6]/40 px-1.5 py-0.5 bg-[#111827]/60 border border-[#1a1f2e]/40 rounded">
                   ESC
                 </kbd>
               </div>
@@ -153,14 +156,15 @@ export function CommandPalette({ isOpen, onClose, onNavigate }: CommandPalettePr
               {/* Results */}
               <div ref={listRef} className="max-h-[50vh] overflow-y-auto py-2">
                 {flatFiltered.length === 0 ? (
-                  <div className="px-5 py-8 text-center">
-                    <p className="text-sm text-[#8A94A6]/60 font-mono">No results found</p>
+                  <div className="px-5 py-10 text-center">
+                    <p className="text-[13px] text-[#8A94A6]/50">No results match "{query}"</p>
+                    <p className="text-[11px] text-[#8A94A6]/30 mt-1">Try a different search term</p>
                   </div>
                 ) : (
                   Object.entries(groupedItems).map(([category, items]) => (
                     <div key={category}>
-                      <div className="px-5 py-2">
-                        <span className="text-[9px] font-mono text-[#8A94A6]/60 tracking-[0.15em]">
+                      <div className="px-4 pt-3 pb-1.5">
+                        <span className="text-[10px] font-mono text-[#8A94A6]/40 tracking-[0.12em]">
                           {category.toUpperCase()}
                         </span>
                       </div>
@@ -173,16 +177,25 @@ export function CommandPalette({ isOpen, onClose, onNavigate }: CommandPalettePr
                             data-selected={isSelected}
                             onClick={() => { onNavigate(item.path); onClose(); }}
                             onMouseEnter={() => setSelectedIndex(globalIdx)}
-                            className={`w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-75 ${
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-100 ${
                               isSelected ? 'bg-[#111827]' : 'hover:bg-[#111827]/50'
                             }`}
                           >
-                            <span style={{ color: item.color }}>{item.icon}</span>
-                            <span className="flex-1 text-sm text-[#F3F4F6] truncate">
-                              {item.label}
+                            <span style={{ color: item.color }} className="flex-shrink-0 opacity-70">
+                              {item.icon}
                             </span>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-[13px] text-[#F3F4F6] block truncate">
+                                {item.label}
+                              </span>
+                              {item.meta && (
+                                <span className="text-[10px] text-[#8A94A6]/50 font-mono tracking-wider block truncate mt-0.5">
+                                  {item.meta}
+                                </span>
+                              )}
+                            </div>
                             {isSelected && (
-                              <ArrowRight className="w-3 h-3 text-[#8A94A6]" />
+                              <ArrowRight className="w-3 h-3 text-[#8A94A6]/50 flex-shrink-0" />
                             )}
                           </button>
                         );
@@ -193,8 +206,8 @@ export function CommandPalette({ isOpen, onClose, onNavigate }: CommandPalettePr
               </div>
 
               {/* Footer hint */}
-              <div className="px-5 py-2.5 border-t border-[#1a1f2e] flex items-center gap-4">
-                <span className="text-[9px] font-mono text-[#8A94A6]/50">
+              <div className="px-4 py-2 border-t border-[#1a1f2e]/40 flex items-center gap-4">
+                <span className="text-[10px] text-[#8A94A6]/30">
                   ↑↓ navigate · ↵ select · esc close
                 </span>
               </div>

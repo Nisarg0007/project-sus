@@ -87,12 +87,12 @@ export default function Incidents() {
       />
 
       {/* Divider */}
-      <div className="max-w-[1600px] mx-auto px-8 mb-6">
-        <div className="h-px bg-[#1a1f2e]" />
+      <div className="max-w-[var(--content-max)] mx-auto px-[var(--content-px)] mb-6">
+        <div className="h-px bg-[#1a1f2e]/60" />
       </div>
 
       {/* Main workspace: Queue + Investigation */}
-      <div className="px-8 max-w-[1600px] mx-auto pb-24">
+      <div className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto pb-24">
         <div className="flex gap-8">
           {/* Left: Queue */}
           <div className="w-[320px] flex-shrink-0 hidden lg:block">

@@ -62,7 +62,7 @@ export default function Activity() {
       />
 
       {/* Timeline */}
-      <section className="px-8 max-w-[1600px] mx-auto mb-12">
+      <section className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto mb-12">
         <ActivityTimeline
           data={timelineData}
           selectedMerchant={selectedMerchant}
@@ -106,12 +106,12 @@ export default function Activity() {
       </section>
 
       {/* Divider */}
-      <div className="max-w-[1600px] mx-auto px-8 mb-8">
-        <div className="h-px bg-[#1a1f2e]" />
+      <div className="max-w-[var(--content-max)] mx-auto px-[var(--content-px)] mb-8">
+        <div className="h-px bg-[#1a1f2e]/60" />
       </div>
 
       {/* Feed + Detail */}
-      <div className="px-8 max-w-[1600px] mx-auto pb-24">
+      <div className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto pb-24">
         <div className="flex gap-8">
           {/* Feed */}
           <div className="flex-1 min-w-0">

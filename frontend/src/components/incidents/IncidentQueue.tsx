@@ -66,7 +66,7 @@ export function IncidentQueue({ incidents, selectedId, onSelect, filter, onFilte
 
       {/* Queue header */}
       <div className="flex items-center gap-4 mb-3">
-        <span className="text-[10px] font-mono text-[#8A94A6] tracking-[0.2em]">
+        <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em]">
           INCIDENT QUEUE
         </span>
         <div className="h-px flex-1 bg-[#1a1f2e]" />

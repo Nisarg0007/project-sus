@@ -18,7 +18,7 @@ export function BehaviorChange({ dimensions }: BehaviorChangeProps) {
   return (
     <div>
       <div className="flex items-center gap-4 mb-4">
-        <span className="text-[10px] font-mono text-[#8A94A6] tracking-[0.2em]">
+        <span className="text-[11px] font-mono text-[#8A94A6]/60 tracking-[0.12em]">
           WHAT CHANGED
         </span>
         <div className="h-px flex-1 bg-[#1a1f2e]" />
