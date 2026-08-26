@@ -1,0 +1,339 @@
+"""
+Investigation Service for SUS — Spike Understanding System.
+
+This service acts as the orchestration layer between the API and the ML
+pipeline. It is responsible for:
+
+1. Accepting investigation requests
+2. Running the ML pipeline (feature engineering → spike detection → classification)
+3. Converting raw pipeline output into clean domain models
+4. Generating incident records
+5. Returning structured investigation results
+
+Design principles:
+- This service DOES NOT contain ML logic. It delegates to existing modules.
+- This service DOES NOT do HTTP/serialization. It returns domain models.
+- pandas DataFrames stay inside this service boundary; the outside world
+  only sees Pydantic models.
+"""
+
+from __future__ import annotations
+
+import logging
+import uuid
+from dataclasses import asdict
+from typing import Optional
+
+import pandas as pd
+
+from src.cause_classifier import (
+    get_default_feature_set,
+    load_model,
+    predict_causes,
+)
+from src.domain.enums import (
+    ConfidenceBand,
+    IncidentSeverity,
+    IncidentStatus,
+    PipelineClassification,
+)
+from src.domain.models import (
+    ActivityEvent,
+    BehavioralEvidence,
+    Incident,
+    Investigation,
+    Merchant,
+    PipelineSummary,
+)
+from src.explainability import (
+    analyze_feature_deviations,
+    analyze_model_contributions,
+    generate_anomaly_summary,
+)
+from src.incidents import (
+    create_incident,
+    extract_top_signals,
+    generate_incidents_batch,
+    get_incident_summary,
+)
+from src.pipeline import (
+    STATUS_BASELINE,
+    STATUS_FRAUD_SPIKE,
+    STATUS_ORGANIC_SPIKE,
+    STATUS_REVIEW_REQUIRED,
+    _assign_decision_reason,
+    _assign_final_status,
+    get_pipeline_summary,
+    run_pipeline,
+)
+from src.spike_detector import DEFAULT_Z_THRESHOLD, MIN_HISTORY_DAYS
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Pipeline Result Conversion
+# ---------------------------------------------------------------------------
+
+
+def _safe_float(value, default: float = 0.0) -> float:
+    """Convert a potentially NaN value to a safe float."""
+    if pd.isna(value):
+        return default
+    return float(value)
+
+
+def _safe_str(value, default: str = "") -> str:
+    """Convert a potentially NaN value to a safe string."""
+    if pd.isna(value):
+        return default
+    return str(value)
+
+
+def _map_classification(final_status: str) -> PipelineClassification:
+    """Map pipeline string status to domain enum."""
+    mapping = {
+        STATUS_BASELINE: PipelineClassification.BASELINE,
+        STATUS_ORGANIC_SPIKE: PipelineClassification.ORGANIC_SPIKE,
+        STATUS_FRAUD_SPIKE: PipelineClassification.FRAUD_SPIKE,
+        STATUS_REVIEW_REQUIRED: PipelineClassification.REVIEW_REQUIRED,
+    }
+    return mapping.get(final_status, PipelineClassification.REVIEW_REQUIRED)
+
+
+def _map_severity(severity_str: str) -> IncidentSeverity:
+    """Map severity string to domain enum."""
+    mapping = {
+        "critical": IncidentSeverity.CRITICAL,
+        "high": IncidentSeverity.HIGH,
+        "medium": IncidentSeverity.MEDIUM,
+        "low": IncidentSeverity.LOW,
+    }
+    return mapping.get(severity_str, IncidentSeverity.LOW)
+
+
+def _map_confidence_band(band: Optional[str]) -> ConfidenceBand:
+    """Map confidence band string to domain enum."""
+    if band is None:
+        return ConfidenceBand.LOW_CONFIDENCE
+    mapping = {
+        "high_confidence": ConfidenceBand.HIGH_CONFIDENCE,
+        "ambiguous": ConfidenceBand.AMBIGUOUS,
+        "low_confidence": ConfidenceBand.LOW_CONFIDENCE,
+    }
+    return mapping.get(band, ConfidenceBand.LOW_CONFIDENCE)
+
+
+def _pipeline_row_to_incident(row: pd.Series) -> Optional[Incident]:
+    """Convert a single pipeline result row to an Incident domain model.
+
+    Returns None for baseline and organic_spike windows (no incident generated).
+    """
+    final_status = row.get("final_status", "")
+
+    # Only create incidents for fraud_spike and review_required
+    if final_status not in {STATUS_FRAUD_SPIKE, STATUS_REVIEW_REQUIRED}:
+        return None
+
+    fraud_prob = _safe_float(row.get("fraud_probability"), 0.0)
+    anomaly_score = _safe_float(row.get("volume_zscore_7d"), 0.0)
+    confidence_val = _safe_float(row.get("confidence"), 0.0)
+    confidence_band_str = _safe_str(row.get("confidence_band"), "low_confidence")
+
+    # Use existing incident module for severity and action
+    from src.incidents import classify_severity, generate_recommended_action
+
+    severity_str = classify_severity(
+        fraud_prob, anomaly_score, confidence_band_str, final_status
+    )
+    predicted_cause = row.get("predicted_cause")
+    if pd.isna(predicted_cause):
+        predicted_cause = None
+    recommended_action = generate_recommended_action(
+        final_status, severity_str, confidence_band_str, predicted_cause
+    )
+    incident_id = f"INC-{row['merchant_id']}-{str(row['date'])[:10].replace('-', '')}"
+
+    return Incident(
+        id=incident_id,
+        merchant_id=row["merchant_id"],
+        date=str(row["date"])[:10],
+        severity=_map_severity(severity_str),
+        status=IncidentStatus.OPEN,
+        classification=_map_classification(final_status),
+        predicted_cause=str(predicted_cause) if predicted_cause else None,
+        fraud_probability=fraud_prob,
+        confidence=confidence_val,
+        confidence_band=_map_confidence_band(confidence_band_str),
+        anomaly_score=anomaly_score,
+        decision_reason=_safe_str(row.get("decision_reason"), ""),
+        anomaly_summary=_safe_str(row.get("anomaly_summary"), ""),
+        top_signals=_extract_top_signals_from_row(row),
+        recommended_action=recommended_action,
+    )
+
+
+def _extract_top_signals_from_row(row: pd.Series) -> list[str]:
+    """Extract top signals from a pipeline row."""
+    signals = []
+
+    anomaly_summary = _safe_str(row.get("anomaly_summary"), "")
+    if anomaly_summary and anomaly_summary != "Insufficient historical data for comparison":
+        parts = anomaly_summary.split("; ")
+        for part in parts:
+            part = part.strip().rstrip(".")
+            if part:
+                signals.append(part)
+
+    top_fraud_signal = _safe_str(row.get("top_fraud_signal"), "")
+    if top_fraud_signal:
+        signals.append(f"Top fraud contributor: {top_fraud_signal}")
+
+    if not signals:
+        signals.append("Anomaly detected via statistical spike detection")
+
+    return signals[:5]
+
+
+# ---------------------------------------------------------------------------
+# Investigation Service
+# ---------------------------------------------------------------------------
+
+
+class InvestigationService:
+    """Orchestrates investigations through the SUS ML pipeline.
+
+    This is the primary service interface for the investigations API.
+    It encapsulates all pipeline orchestration and domain model conversion.
+    """
+
+    def run_investigation(
+        self,
+        transactions_path: str = "data/raw/transactions.csv",
+        window_labels_path: str = "data/raw/window_labels.csv",
+        model_path: Optional[str] = None,
+        z_threshold: float = DEFAULT_Z_THRESHOLD,
+        min_history_days: int = MIN_HISTORY_DAYS,
+        merchant_filter: Optional[str] = None,
+    ) -> dict:
+        """Run a complete investigation through the SUS pipeline.
+
+        Args:
+            transactions_path: Path to the raw transactions CSV.
+            window_labels_path: Path to the window labels CSV.
+            model_path: Optional custom model path. Uses default if None.
+            z_threshold: Z-score threshold for Stage 1 spike detection.
+            min_history_days: Minimum historical days for spike detection.
+            merchant_filter: If set, filter results to this merchant.
+
+        Returns:
+            Dictionary with:
+              - investigation_id: Unique run identifier
+              - summary: PipelineSummary model
+              - incidents: List of IncidentResponse-compatible dicts
+              - total_results: Total windows processed
+              - processing_note: Any warnings from the run
+        """
+        investigation_id = f"INV-{uuid.uuid4().hex[:12].upper()}"
+        processing_note = ""
+
+        logger.info(
+            "Starting investigation %s (threshold=%.2f, merchant=%s)",
+            investigation_id,
+            z_threshold,
+            merchant_filter or "all",
+        )
+
+        # Load data
+        logger.info("Loading data from %s", transactions_path)
+        try:
+            transactions = pd.read_csv(transactions_path)
+            window_labels = pd.read_csv(window_labels_path)
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"Data file not found: {e.filename}. "
+                "Ensure the pipeline data has been generated."
+            ) from e
+
+        logger.info(
+            "Loaded %d transactions, %d window labels",
+            len(transactions),
+            len(window_labels),
+        )
+
+        # Run the core pipeline
+        logger.info("Running SUS pipeline...")
+        pipeline_results = run_pipeline(
+            transactions,
+            window_labels,
+            model_path=model_path,
+            z_threshold=z_threshold,
+            min_history_days=min_history_days,
+        )
+
+        # Filter to specific merchant if requested
+        if merchant_filter:
+            pipeline_results = pipeline_results[
+                pipeline_results["merchant_id"] == merchant_filter
+            ].copy()
+            if len(pipeline_results) == 0:
+                processing_note = f"No results found for merchant '{merchant_filter}'"
+
+        # Generate pipeline summary
+        raw_summary = get_pipeline_summary(pipeline_results)
+        summary = PipelineSummary(
+            total_windows=raw_summary["total_windows"],
+            spikes_detected=raw_summary["n_spikes_detected"],
+            spike_rate=raw_summary["spike_rate"],
+            fraud_incidents=raw_summary["n_fraud_spike"],
+            organic_incidents=raw_summary["n_organic_spike"],
+            review_required=raw_summary["n_review_required"],
+            baseline_windows=raw_summary["n_baseline"],
+        )
+
+        # Convert pipeline results to domain Incident models
+        logger.info("Converting pipeline results to domain models...")
+        incidents = []
+        for _, row in pipeline_results.iterrows():
+            incident = _pipeline_row_to_incident(row)
+            if incident is not None:
+                incidents.append(incident)
+
+        logger.info(
+            "Investigation %s complete: %d incidents from %d windows",
+            investigation_id,
+            len(incidents),
+            len(pipeline_results),
+        )
+
+        return {
+            "investigation_id": investigation_id,
+            "summary": summary,
+            "incidents": incidents,
+            "total_results": len(pipeline_results),
+            "processing_note": processing_note,
+        }
+
+    def get_investigation_status(self) -> dict:
+        """Return a lightweight status check for the pipeline.
+
+        Useful for the API to verify the pipeline is operational.
+        """
+        from src.config import settings
+
+        model_loaded = False
+        try:
+            load_model()
+            model_loaded = True
+        except (FileNotFoundError, Exception):
+            pass
+
+        return {
+            "app_name": settings.app_name,
+            "app_version": settings.app_version,
+            "pipeline_ready": model_loaded,
+        }
+
+
+# Module-level singleton for dependency injection
+investigation_service = InvestigationService()
