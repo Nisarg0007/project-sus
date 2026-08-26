@@ -33,6 +33,9 @@ import {
   anomalies,
 } from './mockData';
 import { runInvestigation as apiRunInvestigation } from '../services/investigationService';
+import { fetchMerchants, fetchMerchantDirectory, fetchMerchantProfile } from '../services/merchantService';
+import { fetchActivityEvents } from '../services/activityService';
+import { fetchFullIncidents } from '../services/incidentService';
 import type { InvestigationRequest } from '../api/investigations';
 
 // ---------------------------------------------------------------------------
@@ -87,16 +90,28 @@ export const dataSource = {
 
   /** All merchants. */
   getMerchants: async (): Promise<Merchant[]> => {
+    if (getMode() === 'api') {
+      const result = await fetchMerchants();
+      return result.data ?? mockData.getMerchants();
+    }
     return mockData.getMerchants();
   },
 
   /** Merchant directory items for the sidebar. */
   getMerchantDirectory: async (): Promise<MerchantDirectoryItem[]> => {
+    if (getMode() === 'api') {
+      const result = await fetchMerchantDirectory();
+      return result.data ?? mockData.getMerchantDirectory();
+    }
     return mockData.getMerchantDirectory();
   },
 
   /** Full merchant profile with behavioral fingerprint. */
   getMerchantProfile: async (id: string): Promise<MerchantProfile | null> => {
+    if (getMode() === 'api') {
+      const result = await fetchMerchantProfile(id);
+      return result.data ?? mockData.getMerchantProfile(id);
+    }
     return mockData.getMerchantProfile(id);
   },
 
@@ -107,11 +122,19 @@ export const dataSource = {
 
   /** Activity feed events. */
   getActivityEvents: async (): Promise<ActivityEvent[]> => {
+    if (getMode() === 'api') {
+      const result = await fetchActivityEvents();
+      return result.data ?? mockData.getActivityEvents();
+    }
     return mockData.getActivityEvents();
   },
 
   /** Full incidents with investigation details. */
   getFullIncidents: async (): Promise<FullIncident[]> => {
+    if (getMode() === 'api') {
+      const result = await fetchFullIncidents();
+      return result.data ?? mockData.getFullIncidents();
+    }
     return mockData.getFullIncidents();
   },
 

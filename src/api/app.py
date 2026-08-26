@@ -97,9 +97,15 @@ def _register_routes(app: FastAPI) -> None:
     """Register all API route handlers."""
     from src.api.routes.health import router as health_router
     from src.api.routes.investigations import router as investigations_router
+    from src.api.routes.merchants import router as merchants_router
+    from src.api.routes.activity import router as activity_router
+    from src.api.routes.incidents import router as incidents_router
 
     app.include_router(health_router)
     app.include_router(investigations_router, prefix=settings.api_prefix)
+    app.include_router(merchants_router, prefix=settings.api_prefix)
+    app.include_router(activity_router, prefix=settings.api_prefix)
+    app.include_router(incidents_router, prefix=settings.api_prefix)
 
 
 # ---------------------------------------------------------------------------

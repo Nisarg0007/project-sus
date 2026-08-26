@@ -75,6 +75,7 @@ logs/
 #docs
 docs/validation_outputs/
 
+
 # Frontend dependencies
 frontend/node_modules/
 

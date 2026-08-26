@@ -21,51 +21,28 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import asdict
 from typing import Optional
 
 import pandas as pd
 
-from src.cause_classifier import (
-    get_default_feature_set,
-    load_model,
-    predict_causes,
-)
+from src.cause_classifier import load_model
 from src.domain.enums import (
     ConfidenceBand,
     IncidentSeverity,
     IncidentStatus,
     PipelineClassification,
 )
-from src.domain.models import (
-    ActivityEvent,
-    BehavioralEvidence,
-    Incident,
-    Investigation,
-    Merchant,
-    PipelineSummary,
-)
-from src.explainability import (
-    analyze_feature_deviations,
-    analyze_model_contributions,
-    generate_anomaly_summary,
-)
-from src.incidents import (
-    create_incident,
-    extract_top_signals,
-    generate_incidents_batch,
-    get_incident_summary,
-)
+from src.domain.models import Incident, PipelineSummary
+from src.incidents import classify_severity, generate_recommended_action
 from src.pipeline import (
     STATUS_BASELINE,
     STATUS_FRAUD_SPIKE,
     STATUS_ORGANIC_SPIKE,
     STATUS_REVIEW_REQUIRED,
-    _assign_decision_reason,
-    _assign_final_status,
     get_pipeline_summary,
     run_pipeline,
 )
+from src.services._helpers import extract_signals, safe_float, safe_str
 from src.spike_detector import DEFAULT_Z_THRESHOLD, MIN_HISTORY_DAYS
 
 logger = logging.getLogger(__name__)
@@ -74,20 +51,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Pipeline Result Conversion
 # ---------------------------------------------------------------------------
-
-
-def _safe_float(value, default: float = 0.0) -> float:
-    """Convert a potentially NaN value to a safe float."""
-    if pd.isna(value):
-        return default
-    return float(value)
-
-
-def _safe_str(value, default: str = "") -> str:
-    """Convert a potentially NaN value to a safe string."""
-    if pd.isna(value):
-        return default
-    return str(value)
 
 
 def _map_classification(final_status: str) -> PipelineClassification:
@@ -135,13 +98,10 @@ def _pipeline_row_to_incident(row: pd.Series) -> Optional[Incident]:
     if final_status not in {STATUS_FRAUD_SPIKE, STATUS_REVIEW_REQUIRED}:
         return None
 
-    fraud_prob = _safe_float(row.get("fraud_probability"), 0.0)
-    anomaly_score = _safe_float(row.get("volume_zscore_7d"), 0.0)
-    confidence_val = _safe_float(row.get("confidence"), 0.0)
-    confidence_band_str = _safe_str(row.get("confidence_band"), "low_confidence")
-
-    # Use existing incident module for severity and action
-    from src.incidents import classify_severity, generate_recommended_action
+    fraud_prob = safe_float(row.get("fraud_probability"), 0.0)
+    anomaly_score = safe_float(row.get("volume_zscore_7d"), 0.0)
+    confidence_val = safe_float(row.get("confidence"), 0.0)
+    confidence_band_str = safe_str(row.get("confidence_band"), "low_confidence")
 
     severity_str = classify_severity(
         fraud_prob, anomaly_score, confidence_band_str, final_status
@@ -166,33 +126,11 @@ def _pipeline_row_to_incident(row: pd.Series) -> Optional[Incident]:
         confidence=confidence_val,
         confidence_band=_map_confidence_band(confidence_band_str),
         anomaly_score=anomaly_score,
-        decision_reason=_safe_str(row.get("decision_reason"), ""),
-        anomaly_summary=_safe_str(row.get("anomaly_summary"), ""),
-        top_signals=_extract_top_signals_from_row(row),
+        decision_reason=safe_str(row.get("decision_reason"), ""),
+        anomaly_summary=safe_str(row.get("anomaly_summary"), ""),
+        top_signals=extract_signals(row),
         recommended_action=recommended_action,
     )
-
-
-def _extract_top_signals_from_row(row: pd.Series) -> list[str]:
-    """Extract top signals from a pipeline row."""
-    signals = []
-
-    anomaly_summary = _safe_str(row.get("anomaly_summary"), "")
-    if anomaly_summary and anomaly_summary != "Insufficient historical data for comparison":
-        parts = anomaly_summary.split("; ")
-        for part in parts:
-            part = part.strip().rstrip(".")
-            if part:
-                signals.append(part)
-
-    top_fraud_signal = _safe_str(row.get("top_fraud_signal"), "")
-    if top_fraud_signal:
-        signals.append(f"Top fraud contributor: {top_fraud_signal}")
-
-    if not signals:
-        signals.append("Anomaly detected via statistical spike detection")
-
-    return signals[:5]
 
 
 # ---------------------------------------------------------------------------

@@ -26,9 +26,8 @@ from src.services.investigation_service import (
     _map_classification,
     _map_confidence_band,
     _map_severity,
-    _safe_float,
-    _safe_str,
 )
+from src.services._helpers import safe_float as _safe_float, safe_str as _safe_str
 
 
 # ---------------------------------------------------------------------------
