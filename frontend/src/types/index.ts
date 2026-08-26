@@ -237,6 +237,30 @@ export interface MerchantProfile {
   anomalyHistory: MerchantAnomalyEntry[];
 }
 
+// Investigation summary from API run
+export interface InvestigationSummary {
+  totalWindows: number;
+  spikesDetected: number;
+  spikeRate: number;
+  fraudIncidents: number;
+  organicIncidents: number;
+  reviewRequired: number;
+  baselineWindows: number;
+}
+
+// Investigation run result (API-backed)
+export interface InvestigationRunResult {
+  investigationId: string;
+  summary: InvestigationSummary;
+  dashboardMetrics: DashboardMetrics;
+  incidents: Incident[];
+  fullIncidents: FullIncident[];
+  activityEvents: ActivityEvent[];
+  anomalies: Anomaly[];
+  totalResults: number;
+  processingNote: string;
+}
+
 // Merchant directory item
 export interface MerchantDirectoryItem {
   id: string;
