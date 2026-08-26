@@ -54,6 +54,12 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
+# SQLite database files
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
 # Trained model artifacts
 models/*
 !models/.gitkeep

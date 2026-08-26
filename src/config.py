@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     raw_data_dir: str = "data/raw"
     processed_data_dir: str = "data/processed"
 
+    # Database
+    database_url: str = "sqlite:///data/sus.db"
+
     model_config = {"env_prefix": "SUS_", "env_file": ".env", "extra": "ignore"}
 
 
