@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from src.api.schemas.investigations import (
     InvestigationRequest,
@@ -17,6 +18,8 @@ from src.api.schemas.investigations import (
     IncidentResponse,
     PipelineSummary,
 )
+from src.config import settings
+from src.database.session import get_db
 from src.services.investigation_service import investigation_service
 
 logger = logging.getLogger(__name__)
@@ -25,7 +28,10 @@ router = APIRouter(prefix="/investigations", tags=["investigations"])
 
 
 @router.post("/run", response_model=InvestigationResponse)
-async def run_investigation(request: InvestigationRequest) -> InvestigationResponse:
+async def run_investigation(
+    request: InvestigationRequest,
+    db: Session = Depends(get_db),
+) -> InvestigationResponse:
     """Run a complete SUS pipeline investigation.
 
     Accepts paths to transaction data and window labels, runs the full
@@ -34,6 +40,7 @@ async def run_investigation(request: InvestigationRequest) -> InvestigationRespo
 
     The endpoint delegates all ML logic to InvestigationService, which
     in turn calls the existing pipeline modules. No ML logic lives here.
+    Results are persisted to the database when the pipeline succeeds.
     """
     try:
         result = investigation_service.run_investigation(
@@ -41,7 +48,9 @@ async def run_investigation(request: InvestigationRequest) -> InvestigationRespo
             window_labels_path=request.window_labels_path,
             model_path=request.model_path,
             z_threshold=request.z_threshold,
+            min_history_days=settings.default_min_history_days,
             merchant_filter=request.merchant_filter,
+            db=db,
         )
     except FileNotFoundError as e:
         raise HTTPException(

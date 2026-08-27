@@ -19,11 +19,13 @@ Design principles:
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from typing import Optional
 
 import pandas as pd
+from sqlalchemy.orm import Session
 
 from src.cause_classifier import load_model
 from src.domain.enums import (
@@ -42,6 +44,7 @@ from src.pipeline import (
     get_pipeline_summary,
     run_pipeline,
 )
+from src.repositories.investigation_repository import InvestigationRepository
 from src.services._helpers import extract_signals, safe_float, safe_str
 from src.spike_detector import DEFAULT_Z_THRESHOLD, MIN_HISTORY_DAYS
 
@@ -153,6 +156,7 @@ class InvestigationService:
         z_threshold: float = DEFAULT_Z_THRESHOLD,
         min_history_days: int = MIN_HISTORY_DAYS,
         merchant_filter: Optional[str] = None,
+        db: Optional[Session] = None,
     ) -> dict:
         """Run a complete investigation through the SUS pipeline.
 
@@ -163,6 +167,7 @@ class InvestigationService:
             z_threshold: Z-score threshold for Stage 1 spike detection.
             min_history_days: Minimum historical days for spike detection.
             merchant_filter: If set, filter results to this merchant.
+            db: Optional database session. When provided, results are persisted.
 
         Returns:
             Dictionary with:
@@ -244,13 +249,92 @@ class InvestigationService:
             len(pipeline_results),
         )
 
-        return {
+        result = {
             "investigation_id": investigation_id,
             "summary": summary,
             "incidents": incidents,
             "total_results": len(pipeline_results),
             "processing_note": processing_note,
+            # Capture input parameters for persistence
+            "_input": {
+                "transactions_path": transactions_path,
+                "window_labels_path": window_labels_path,
+                "model_path": model_path,
+                "z_threshold": z_threshold,
+                "min_history_days": min_history_days,
+                "merchant_filter": merchant_filter,
+            },
         }
+
+        # Persist if database session provided
+        if db is not None:
+            self._persist_results(db, result)
+
+        return result
+
+    def _persist_results(self, db: Session, result: dict) -> None:
+        """Persist investigation results to the database.
+
+        Creates an InvestigationRun and all associated PersistedIncident records.
+        On failure, rolls back and logs a warning — the API response is
+        still returned to the caller (degraded mode).
+        """
+        repo = InvestigationRepository(db)
+        input_params = result["_input"]
+        summary = result["summary"]
+
+        try:
+            run = repo.create_investigation(
+                investigation_id=result["investigation_id"],
+                transactions_path=input_params["transactions_path"],
+                window_labels_path=input_params["window_labels_path"],
+                model_path=input_params["model_path"],
+                z_threshold=input_params["z_threshold"],
+                min_history_days=input_params["min_history_days"],
+                merchant_filter=input_params["merchant_filter"],
+                total_results=result["total_results"],
+                spikes_detected=summary.spikes_detected,
+                fraud_incidents=summary.fraud_incidents,
+                organic_incidents=summary.organic_incidents,
+                review_required=summary.review_required,
+                baseline_windows=summary.baseline_windows,
+                spike_rate=summary.spike_rate,
+                processing_note=result["processing_note"],
+            )
+
+            for incident in result["incidents"]:
+                repo.create_incident(
+                    investigation_run_id=run.id,
+                    incident_id=incident.id,
+                    merchant_id=incident.merchant_id,
+                    date=incident.date,
+                    severity=incident.severity.value,
+                    status=incident.status.value,
+                    classification=incident.classification.value,
+                    predicted_cause=incident.predicted_cause,
+                    fraud_probability=incident.fraud_probability,
+                    confidence=incident.confidence,
+                    confidence_band=incident.confidence_band.value,
+                    anomaly_score=incident.anomaly_score,
+                    decision_reason=incident.decision_reason,
+                    anomaly_summary=incident.anomaly_summary,
+                    top_signals_json=json.dumps(incident.top_signals),
+                    recommended_action=incident.recommended_action,
+                )
+
+            db.commit()
+            logger.info(
+                "Persisted investigation %s (%d incidents)",
+                result["investigation_id"],
+                len(result["incidents"]),
+            )
+        except Exception:
+            db.rollback()
+            logger.warning(
+                "Failed to persist investigation %s — returning results without persistence",
+                result["investigation_id"],
+                exc_info=True,
+            )
 
     def get_investigation_status(self) -> dict:
         """Return a lightweight status check for the pipeline.
