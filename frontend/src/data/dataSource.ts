@@ -34,6 +34,7 @@ import {
 } from './mockData';
 import {
   runInvestigation as apiRunInvestigation,
+  rerunInvestigation as apiRerunInvestigation,
   getInvestigationHistory as apiGetInvestigationHistory,
   getInvestigationById as apiGetInvestigationById,
 } from '../services/investigationService';
@@ -175,6 +176,15 @@ export const dataSource = {
   /** Run a pipeline investigation (works in both modes). */
   runInvestigation: async (request?: InvestigationRequest) => {
     return mockData.runInvestigation(request);
+  },
+
+  /** Re-run a previous investigation using its stored configuration. */
+  rerunInvestigation: async (investigationId: string) => {
+    if (getMode() === 'api') {
+      return apiRerunInvestigation(investigationId);
+    }
+    // Mock mode: run the pipeline with default params
+    return apiRerunInvestigation(investigationId);
   },
 
   /** Investigation history list. */

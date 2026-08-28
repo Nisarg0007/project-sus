@@ -7,10 +7,10 @@
  * Data flow: URL param → dataSource.getInvestigationById() → mapper → UI
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, FileText, RefreshCw } from 'lucide-react';
 import { dataSource } from '../data/dataSource';
 import type { InvestigationHistoryDetail } from '../api/mappers/investigationHistoryMapper';
 import type { FullIncident } from '../types';
@@ -50,6 +50,8 @@ export default function InvestigationDetailPage() {
   const [detail, setDetail] = useState<InvestigationHistoryDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [rerunning, setRerunning] = useState(false);
+  const [rerunError, setRerunError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!investigationId) return;
@@ -71,6 +73,24 @@ export default function InvestigationDetailPage() {
 
     return () => { cancelled = true; };
   }, [investigationId]);
+
+  const handleRerun = useCallback(async () => {
+    if (!investigationId || rerunning) return;
+    setRerunning(true);
+    setRerunError(null);
+    try {
+      const result = await dataSource.rerunInvestigation(investigationId);
+      if (result.data) {
+        navigate(`/investigations/${result.data.investigationId}`);
+      } else {
+        setRerunError(result.error?.message ?? 'Rerun failed');
+      }
+    } catch (err) {
+      setRerunError(err instanceof Error ? err.message : 'Rerun failed');
+    } finally {
+      setRerunning(false);
+    }
+  }, [investigationId, rerunning, navigate]);
 
   // --- Loading state ---
   if (loading) {
@@ -144,6 +164,14 @@ export default function InvestigationDetailPage() {
           <span className="px-2 py-0.5 text-[10px] font-mono tracking-wider uppercase bg-[#38BDF8]/10 text-[#38BDF8] rounded-sm">
             {detail.status}
           </span>
+          <button
+            onClick={handleRerun}
+            disabled={rerunning}
+            className="ml-auto flex items-center gap-2 px-3 py-1.5 text-[11px] font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 border border-[#38BDF8]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            <RefreshCw className={`w-3 h-3 ${rerunning ? 'animate-spin' : ''}`} />
+            {rerunning ? 'RE-RUNNING...' : 'RE-RUN INVESTIGATION'}
+          </button>
         </div>
         <h1 className="text-2xl font-mono font-medium text-[#F3F4F6] tracking-tight mb-1">
           {detail.investigationId}
@@ -151,6 +179,11 @@ export default function InvestigationDetailPage() {
         <p className="text-sm text-[#8A94A6]">
           {detail.createdAtFormatted}
         </p>
+        {rerunError && (
+          <p className="text-xs font-mono text-[#FF5C5C] mt-2">
+            {rerunError}
+          </p>
+        )}
       </div>
 
       {/* Divider */}

@@ -10,6 +10,7 @@
 import type { InvestigationRequest, InvestigationHistoryFilters } from '../api/investigations';
 import {
   runInvestigation as apiRunInvestigation,
+  rerunInvestigation as apiRerunInvestigation,
   getInvestigationHistory as apiGetInvestigationHistory,
   getInvestigationById as apiGetInvestigationById,
 } from '../api/investigations';
@@ -89,6 +90,39 @@ export async function runInvestigation(
       error: {
         status: 0,
         message: `Failed to process investigation response: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      },
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Investigation Rerun
+// ---------------------------------------------------------------------------
+
+export async function rerunInvestigation(
+  investigationId: string,
+): Promise<ServiceResult<InvestigationResult>> {
+  const response = await apiRerunInvestigation(investigationId);
+
+  if (!response.ok || !response.data) {
+    return {
+      data: null,
+      error: response.error || {
+        status: 0,
+        message: `Failed to rerun investigation ${investigationId}`,
+      },
+    };
+  }
+
+  try {
+    const mapped = mapInvestigationResponse(response.data);
+    return { data: mapped as InvestigationResult, error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: {
+        status: 0,
+        message: `Failed to process rerun response: ${err instanceof Error ? err.message : 'Unknown error'}`,
       },
     };
   }

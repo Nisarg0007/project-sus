@@ -197,6 +197,18 @@ export async function getInvestigationById(
 // Health
 // ---------------------------------------------------------------------------
 
+export async function rerunInvestigation(
+  investigationId: string,
+): Promise<ApiResponse<BackendInvestigationResponse>> {
+  return apiClient.post<BackendInvestigationResponse>(
+    `/api/v1/investigations/${encodeURIComponent(investigationId)}/rerun`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Health
+// ---------------------------------------------------------------------------
+
 export async function getHealth(): Promise<ApiResponse<BackendHealthResponse>> {
   return apiClient.get<BackendHealthResponse>('/health');
 }

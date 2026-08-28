@@ -336,6 +336,50 @@ class InvestigationService:
                 exc_info=True,
             )
 
+    def rerun_investigation(
+        self,
+        investigation_id: str,
+        db: Session,
+    ) -> dict:
+        """Re-run a previously completed investigation using its stored configuration.
+
+        Looks up the original investigation, extracts input parameters,
+        and delegates to run_investigation(). Creates a brand new
+        investigation — the original is never modified.
+
+        Args:
+            investigation_id: The business ID of the investigation to re-run.
+            db: Active database session.
+
+        Returns:
+            Dictionary with the new investigation results (same shape as
+            run_investigation output).
+
+        Raises:
+            ValueError: If the original investigation is not found.
+        """
+        repo = InvestigationRepository(db)
+        original = repo.get_by_investigation_id(investigation_id)
+
+        if original is None:
+            raise ValueError(f"Investigation '{investigation_id}' not found")
+
+        logger.info(
+            "Re-running investigation %s with original configuration",
+            investigation_id,
+        )
+
+        # Extract stored configuration and run a fresh investigation
+        return self.run_investigation(
+            transactions_path=original.transactions_path,
+            window_labels_path=original.window_labels_path,
+            model_path=original.model_path,
+            z_threshold=original.z_threshold,
+            min_history_days=original.min_history_days,
+            merchant_filter=original.merchant_filter,
+            db=db,
+        )
+
     def get_investigation_status(self) -> dict:
         """Return a lightweight status check for the pipeline.
 

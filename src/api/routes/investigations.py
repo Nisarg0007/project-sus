@@ -113,6 +113,76 @@ async def run_investigation(
 
 
 # ---------------------------------------------------------------------------
+# Investigation Rerun
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{investigation_id}/rerun",
+    response_model=InvestigationResponse,
+)
+async def rerun_investigation(
+    investigation_id: str,
+    db: Session = Depends(get_db),
+) -> InvestigationResponse:
+    """Re-run a previously completed investigation with its stored configuration.
+
+    Creates a completely new investigation with a new investigation_id.
+    The original investigation is never modified.
+    """
+    try:
+        result = investigation_service.rerun_investigation(
+            investigation_id=investigation_id,
+            db=db,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=str(e),
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Data file not found: {str(e)}",
+        )
+    except Exception as e:
+        logger.exception("Unexpected error during investigation rerun")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal pipeline error: {str(e)}",
+        )
+
+    incident_responses = []
+    for incident in result["incidents"]:
+        incident_responses.append(
+            IncidentResponse(
+                id=incident.id,
+                merchant_id=incident.merchant_id,
+                date=incident.date,
+                severity=incident.severity,
+                status=incident.status,
+                classification=incident.classification,
+                fraud_probability=incident.fraud_probability,
+                confidence=incident.confidence,
+                confidence_band=incident.confidence_band,
+                anomaly_score=incident.anomaly_score,
+                decision_reason=incident.decision_reason,
+                anomaly_summary=incident.anomaly_summary,
+                top_signals=incident.top_signals,
+                recommended_action=incident.recommended_action,
+            )
+        )
+
+    return InvestigationResponse(
+        investigation_id=result["investigation_id"],
+        summary=result["summary"],
+        incidents=incident_responses,
+        total_results=result["total_results"],
+        processing_note=result["processing_note"],
+    )
+
+
+# ---------------------------------------------------------------------------
 # Investigation History
 # ---------------------------------------------------------------------------
 
