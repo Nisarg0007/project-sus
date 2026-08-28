@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -43,6 +44,11 @@ class InvestigationHistoryService:
         *,
         limit: int = 20,
         offset: int = 0,
+        investigation_id: Optional[str] = None,
+        status: Optional[str] = None,
+        merchant_filter: Optional[str] = None,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
     ) -> InvestigationListResponse:
         """Return a paginated list of investigation runs, newest first.
 
@@ -50,14 +56,27 @@ class InvestigationHistoryService:
             db: Active database session.
             limit: Maximum items per page (1–100).
             offset: Number of items to skip.
+            investigation_id: Partial match filter on investigation ID.
+            status: Exact match filter on run status.
+            merchant_filter: Partial match filter on merchant filter field.
+            created_from: Lower bound for created_at timestamp.
+            created_to: Upper bound for created_at timestamp.
 
         Returns:
             Paginated list response with metadata.
         """
         repo = InvestigationRepository(db)
 
-        total = repo.count_investigations()
-        runs = repo.list_investigations(limit=limit, offset=offset)
+        filter_kwargs = dict(
+            investigation_id=investigation_id,
+            status=status,
+            merchant_filter=merchant_filter,
+            created_from=created_from,
+            created_to=created_to,
+        )
+
+        total = repo.count_investigations(**filter_kwargs)
+        runs = repo.list_investigations(limit=limit, offset=offset, **filter_kwargs)
 
         items = [
             InvestigationListItem(

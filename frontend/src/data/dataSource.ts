@@ -41,6 +41,7 @@ import type {
   InvestigationHistoryList,
   InvestigationHistoryDetail,
 } from '../api/mappers/investigationHistoryMapper';
+import type { InvestigationHistoryFilters } from '../api/investigations';
 import { fetchMerchants, fetchMerchantDirectory, fetchMerchantProfile } from '../services/merchantService';
 import { fetchActivityEvents } from '../services/activityService';
 import { fetchFullIncidents } from '../services/incidentService';
@@ -83,6 +84,7 @@ const mockData = {
   getInvestigationHistory: async (
     _limit?: number,
     _offset?: number,
+    _filters?: InvestigationHistoryFilters,
   ): Promise<InvestigationHistoryList> => {
     return { total: 0, limit: _limit ?? 20, offset: _offset ?? 0, items: [] };
   },
@@ -179,12 +181,13 @@ export const dataSource = {
   getInvestigationHistory: async (
     limit?: number,
     offset?: number,
+    filters?: InvestigationHistoryFilters,
   ): Promise<InvestigationHistoryList> => {
     if (getMode() === 'api') {
-      const result = await apiGetInvestigationHistory(limit, offset);
-      return result.data ?? mockData.getInvestigationHistory(limit, offset);
+      const result = await apiGetInvestigationHistory(limit, offset, filters);
+      return result.data ?? mockData.getInvestigationHistory(limit, offset, filters);
     }
-    return mockData.getInvestigationHistory(limit, offset);
+    return mockData.getInvestigationHistory(limit, offset, filters);
   },
 
   /** Single persisted investigation detail. */

@@ -7,7 +7,7 @@
  * Components call this service. They never call fetch() or mappers directly.
  */
 
-import type { InvestigationRequest } from '../api/investigations';
+import type { InvestigationRequest, InvestigationHistoryFilters } from '../api/investigations';
 import {
   runInvestigation as apiRunInvestigation,
   getInvestigationHistory as apiGetInvestigationHistory,
@@ -101,8 +101,9 @@ export async function runInvestigation(
 export async function getInvestigationHistory(
   limit: number = 20,
   offset: number = 0,
+  filters?: InvestigationHistoryFilters,
 ): Promise<ServiceResult<InvestigationHistoryList>> {
-  const response = await apiGetInvestigationHistory(limit, offset);
+  const response = await apiGetInvestigationHistory(limit, offset, filters);
 
   if (!response.ok || !response.data) {
     return {

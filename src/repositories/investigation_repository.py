@@ -15,9 +15,11 @@ Design principles:
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session, selectinload
 
 from src.database.models import InvestigationRun, PersistedIncident
@@ -104,10 +106,50 @@ class InvestigationRepository:
         )
         return self.db.execute(stmt).scalar_one_or_none()
 
+    def _apply_filters(
+        self,
+        stmt: Select,
+        *,
+        investigation_id: Optional[str] = None,
+        status: Optional[str] = None,
+        merchant_filter: Optional[str] = None,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
+    ) -> Select:
+        """Apply optional filters to a SELECT statement on InvestigationRun.
+
+        This is the single source of filter logic used by both
+        list_investigations() and count_investigations() to ensure
+        consistent behavior.
+        """
+        if investigation_id:
+            stmt = stmt.where(
+                InvestigationRun.investigation_id.ilike(f"%{investigation_id}%")
+            )
+        if status:
+            stmt = stmt.where(InvestigationRun.status == status)
+        if merchant_filter:
+            stmt = stmt.where(
+                InvestigationRun.merchant_filter.ilike(f"%{merchant_filter}%")
+            )
+        if created_from:
+            stmt = stmt.where(InvestigationRun.created_at >= created_from)
+        if created_to:
+            stmt = stmt.where(InvestigationRun.created_at <= created_to)
+        return stmt
+
     def list_investigations(
-        self, *, limit: int = 20, offset: int = 0
+        self,
+        *,
+        limit: int = 20,
+        offset: int = 0,
+        investigation_id: Optional[str] = None,
+        status: Optional[str] = None,
+        merchant_filter: Optional[str] = None,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
     ) -> list[InvestigationRun]:
-        """List investigation runs, newest first.
+        """List investigation runs, newest first, with optional filters.
 
         Incidents are loaded via selectin for each run.
         """
@@ -115,16 +157,38 @@ class InvestigationRepository:
             select(InvestigationRun)
             .options(selectinload(InvestigationRun.incidents))
             .order_by(InvestigationRun.created_at.desc())
-            .offset(offset)
-            .limit(limit)
         )
-        return list(self.db.execute(stmt).scalars().all())
+        stmt = self._apply_filters(
+            stmt,
+            investigation_id=investigation_id,
+            status=status,
+            merchant_filter=merchant_filter,
+            created_from=created_from,
+            created_to=created_to,
+        )
+        return list(self.db.execute(stmt.offset(offset).limit(limit)).scalars().all())
 
-    def count_investigations(self) -> int:
-        """Return the total number of persisted investigation runs."""
+    def count_investigations(
+        self,
+        *,
+        investigation_id: Optional[str] = None,
+        status: Optional[str] = None,
+        merchant_filter: Optional[str] = None,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
+    ) -> int:
+        """Return the total number of persisted investigation runs matching filters."""
         from sqlalchemy import func
 
         stmt = select(func.count()).select_from(InvestigationRun)
+        stmt = self._apply_filters(
+            stmt,
+            investigation_id=investigation_id,
+            status=status,
+            merchant_filter=merchant_filter,
+            created_from=created_from,
+            created_to=created_to,
+        )
         return self.db.execute(stmt).scalar_one()
 
     # ------------------------------------------------------------------

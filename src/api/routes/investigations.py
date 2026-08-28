@@ -10,9 +10,11 @@ Provides endpoints for:
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, model_validator
 from sqlalchemy.orm import Session
 
 from src.api.schemas.investigation_history import (
@@ -120,14 +122,42 @@ async def list_investigations(
     db: Session = Depends(get_db),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
     offset: int = Query(0, ge=0, description="Items to skip"),
+    investigation_id: Optional[str] = Query(
+        None, description="Partial match on investigation ID"
+    ),
+    status: Optional[str] = Query(
+        None, description="Exact match on run status"
+    ),
+    merchant_filter: Optional[str] = Query(
+        None, description="Partial match on merchant filter"
+    ),
+    created_from: Optional[datetime] = Query(
+        None, description="Created on or after (ISO 8601)"
+    ),
+    created_to: Optional[datetime] = Query(
+        None, description="Created on or before (ISO 8601)"
+    ),
 ) -> InvestigationListResponse:
-    """List persisted investigation runs with pagination.
+    """List persisted investigation runs with pagination and optional filters.
 
     Returns investigations ordered by newest first, with summary statistics.
     Does not include individual incidents — use the detail endpoint for that.
     """
+    if created_from and created_to and created_from > created_to:
+        raise HTTPException(
+            status_code=422,
+            detail="created_from must not be after created_to",
+        )
+
     return investigation_history_service.list_investigations(
-        db=db, limit=limit, offset=offset
+        db=db,
+        limit=limit,
+        offset=offset,
+        investigation_id=investigation_id,
+        status=status,
+        merchant_filter=merchant_filter,
+        created_from=created_from,
+        created_to=created_to,
     )
 
 

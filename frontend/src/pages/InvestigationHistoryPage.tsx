@@ -1,20 +1,37 @@
 /**
  * Investigation History Page
  *
- * Displays a paginated list of all persisted investigations.
+ * Displays a paginated list of persisted investigations with search and filters.
  * Each item is clickable and navigates to the InvestigationDetailPage.
  *
- * Data flow: dataSource.getInvestigationHistory(limit, offset) → UI
+ * Data flow: dataSource.getInvestigationHistory(limit, offset, filters) → UI
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Clock } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Clock, Search, X } from 'lucide-react';
 import { dataSource } from '../data/dataSource';
 import type { InvestigationHistoryItem } from '../api/mappers/investigationHistoryMapper';
+import type { InvestigationHistoryFilters } from '../api/investigations';
 
 const PAGE_SIZE = 10;
+
+interface FilterState {
+  investigationId: string;
+  status: string;
+  merchantFilter: string;
+  createdFrom: string;
+  createdTo: string;
+}
+
+const EMPTY_FILTERS: FilterState = {
+  investigationId: '',
+  status: '',
+  merchantFilter: '',
+  createdFrom: '',
+  createdTo: '',
+};
 
 // ------------------------------------------------------------------
 // Main Page
@@ -27,40 +44,85 @@ export default function InvestigationHistoryPage() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(EMPTY_FILTERS);
 
+  const hasActiveFilters = Object.values(appliedFilters).some((v) => v !== '');
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const showingFrom = total === 0 ? 0 : offset + 1;
   const showingTo = Math.min(offset + PAGE_SIZE, total);
 
-  const loadPage = useCallback(async (newOffset: number) => {
-    setLoading(true);
-    try {
-      const result = await dataSource.getInvestigationHistory(PAGE_SIZE, newOffset);
-      setItems(result.items);
-      setTotal(result.total);
-      setOffset(result.offset);
-    } catch {
-      setItems([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
+  const buildFilters = useCallback((f: FilterState): InvestigationHistoryFilters => {
+    const result: InvestigationHistoryFilters = {};
+    if (f.investigationId) result.investigation_id = f.investigationId;
+    if (f.status) result.status = f.status;
+    if (f.merchantFilter) result.merchant_filter = f.merchantFilter;
+    if (f.createdFrom) result.created_from = f.createdFrom;
+    if (f.createdTo) result.created_to = f.createdTo;
+    return result;
   }, []);
 
+  const loadPage = useCallback(
+    async (newOffset: number, activeFilters: FilterState) => {
+      setLoading(true);
+      try {
+        const apiFilters = buildFilters(activeFilters);
+        const hasAny = Object.keys(apiFilters).length > 0;
+        const result = await dataSource.getInvestigationHistory(
+          PAGE_SIZE,
+          newOffset,
+          hasAny ? apiFilters : undefined,
+        );
+        setItems(result.items);
+        setTotal(result.total);
+        setOffset(result.offset);
+      } catch {
+        setItems([]);
+        setTotal(0);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [buildFilters],
+  );
+
   useEffect(() => {
-    loadPage(0);
+    loadPage(0, EMPTY_FILTERS);
   }, [loadPage]);
+
+  const handleApplyFilters = () => {
+    setAppliedFilters(filters);
+    loadPage(0, filters);
+  };
+
+  const handleClearFilters = () => {
+    setFilters(EMPTY_FILTERS);
+    setAppliedFilters(EMPTY_FILTERS);
+    loadPage(0, EMPTY_FILTERS);
+  };
+
+  const handleFilterChange = (field: keyof FilterState, value: string) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Date validation
+  const dateError =
+    filters.createdFrom &&
+    filters.createdTo &&
+    filters.createdFrom > filters.createdTo
+      ? 'From date must be before To date'
+      : null;
 
   const goToPrev = () => {
     if (offset > 0) {
-      loadPage(Math.max(0, offset - PAGE_SIZE));
+      loadPage(Math.max(0, offset - PAGE_SIZE), appliedFilters);
     }
   };
 
   const goToNext = () => {
     if (offset + PAGE_SIZE < total) {
-      loadPage(offset + PAGE_SIZE);
+      loadPage(offset + PAGE_SIZE, appliedFilters);
     }
   };
 
@@ -103,6 +165,115 @@ export default function InvestigationHistoryPage() {
       {/* Divider */}
       <div className="h-px bg-[#1a1f2e]/60 my-6" />
 
+      {/* Filter controls */}
+      <div className="mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {/* Investigation ID search */}
+          <div>
+            <label className="block text-[9px] font-mono text-[#8A94A6] tracking-wider mb-1">
+              INVESTIGATION ID
+            </label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#8A94A6]/40" />
+              <input
+                type="text"
+                value={filters.investigationId}
+                onChange={(e) => handleFilterChange('investigationId', e.target.value)}
+                placeholder="INV-..."
+                className="w-full pl-7 pr-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 placeholder:text-[#8A94A6]/30 focus:border-[#38BDF8]/40 focus:outline-none transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Status filter */}
+          <div>
+            <label className="block text-[9px] font-mono text-[#8A94A6] tracking-wider mb-1">
+              STATUS
+            </label>
+            <select
+              value={filters.status}
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+              className="w-full px-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 focus:border-[#38BDF8]/40 focus:outline-none transition-colors appearance-none"
+            >
+              <option value="">All</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+
+          {/* Merchant filter */}
+          <div>
+            <label className="block text-[9px] font-mono text-[#8A94A6] tracking-wider mb-1">
+              MERCHANT
+            </label>
+            <input
+              type="text"
+              value={filters.merchantFilter}
+              onChange={(e) => handleFilterChange('merchantFilter', e.target.value)}
+              placeholder="merchant_001"
+              className="w-full px-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 placeholder:text-[#8A94A6]/30 focus:border-[#38BDF8]/40 focus:outline-none transition-colors"
+            />
+          </div>
+
+          {/* Date from */}
+          <div>
+            <label className="block text-[9px] font-mono text-[#8A94A6] tracking-wider mb-1">
+              FROM
+            </label>
+            <input
+              type="date"
+              value={filters.createdFrom}
+              onChange={(e) => handleFilterChange('createdFrom', e.target.value)}
+              className="w-full px-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 focus:border-[#38BDF8]/40 focus:outline-none transition-colors [color-scheme:dark]"
+            />
+          </div>
+
+          {/* Date to */}
+          <div>
+            <label className="block text-[9px] font-mono text-[#8A94A6] tracking-wider mb-1">
+              TO
+            </label>
+            <input
+              type="date"
+              value={filters.createdTo}
+              onChange={(e) => handleFilterChange('createdTo', e.target.value)}
+              className="w-full px-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 focus:border-[#38BDF8]/40 focus:outline-none transition-colors [color-scheme:dark]"
+            />
+          </div>
+        </div>
+
+        {/* Date validation error */}
+        {dateError && (
+          <p className="text-[10px] font-mono text-[#FF5C5C] mt-1.5">
+            {dateError}
+          </p>
+        )}
+
+        {/* Filter actions */}
+        <div className="flex items-center gap-3 mt-3">
+          <button
+            onClick={handleApplyFilters}
+            disabled={!!dateError}
+            className="px-4 py-1.5 text-[11px] font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 border border-[#38BDF8]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            APPLY FILTERS
+          </button>
+          {hasActiveFilters && (
+            <button
+              onClick={handleClearFilters}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono text-[#8A94A6] hover:text-[#F3F4F6] transition-colors"
+            >
+              <X className="w-3 h-3" />
+              CLEAR FILTERS
+            </button>
+          )}
+          {hasActiveFilters && (
+            <span className="text-[10px] font-mono text-[#8A94A6]/60">
+              Filters active
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Pagination info bar */}
       {total > 0 && !loading && (
         <div className="flex items-center justify-between mb-4">
@@ -141,8 +312,8 @@ export default function InvestigationHistoryPage() {
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && items.length === 0 && (
+      {/* Empty state — no data at all */}
+      {!loading && items.length === 0 && !hasActiveFilters && (
         <div className="flex flex-col items-center gap-4 py-20">
           <div className="w-12 h-12 rounded-full bg-[#1E293B]/60 flex items-center justify-center">
             <FileText className="w-5 h-5 text-[#8A94A6]" />
@@ -161,6 +332,25 @@ export default function InvestigationHistoryPage() {
             className="mt-2 px-4 py-2 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 rounded-sm transition-colors"
           >
             GO TO MISSION CONTROL
+          </button>
+        </div>
+      )}
+
+      {/* Empty state — filters returned nothing */}
+      {!loading && items.length === 0 && hasActiveFilters && (
+        <div className="flex flex-col items-center gap-4 py-20">
+          <div className="w-12 h-12 rounded-full bg-[#1E293B]/60 flex items-center justify-center">
+            <Search className="w-5 h-5 text-[#8A94A6]" />
+          </div>
+          <h2 className="text-lg font-medium text-[#F3F4F6]">No matching investigations</h2>
+          <p className="text-sm text-[#8A94A6] max-w-md text-center">
+            No investigations match the current filters. Try adjusting your search criteria.
+          </p>
+          <button
+            onClick={handleClearFilters}
+            className="mt-2 px-4 py-2 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 rounded-sm transition-colors"
+          >
+            CLEAR FILTERS
           </button>
         </div>
       )}

@@ -134,6 +134,14 @@ export interface InvestigationRequest {
   merchant_filter?: string | null;
 }
 
+export interface InvestigationHistoryFilters {
+  investigation_id?: string;
+  status?: string;
+  merchant_filter?: string;
+  created_from?: string;
+  created_to?: string;
+}
+
 // ---------------------------------------------------------------------------
 // API Methods
 // ---------------------------------------------------------------------------
@@ -154,10 +162,20 @@ export async function runInvestigation(
 export async function getInvestigationHistory(
   limit: number = 20,
   offset: number = 0,
+  filters?: InvestigationHistoryFilters,
 ): Promise<ApiResponse<BackendInvestigationListResponse>> {
   const query = new URLSearchParams();
   query.set('limit', String(limit));
   query.set('offset', String(offset));
+
+  if (filters) {
+    if (filters.investigation_id) query.set('investigation_id', filters.investigation_id);
+    if (filters.status) query.set('status', filters.status);
+    if (filters.merchant_filter) query.set('merchant_filter', filters.merchant_filter);
+    if (filters.created_from) query.set('created_from', filters.created_from);
+    if (filters.created_to) query.set('created_to', filters.created_to);
+  }
+
   return apiClient.get<BackendInvestigationListResponse>(
     `/api/v1/investigations?${query.toString()}`,
   );
