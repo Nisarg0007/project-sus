@@ -42,8 +42,33 @@ async def lifespan(app: FastAPI):
         settings.app_name,
         settings.app_version,
     )
+
+    # Initialize database tables if they don't exist
+    _initialize_database()
+
     yield
     logger.info("Shutting down %s", settings.app_name)
+
+
+def _initialize_database() -> None:
+    """Create all database tables if they don't exist.
+
+    This is idempotent — running it multiple times will not affect
+    existing tables or data.
+    """
+    try:
+        from src.database import Base, engine
+
+        # Import models so SQLAlchemy metadata knows about all tables
+        import src.database.models  # noqa: F401
+
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables initialized successfully")
+    except Exception:
+        logger.warning(
+            "Database initialization failed — persistence will be unavailable",
+            exc_info=True,
+        )
 
 
 # ---------------------------------------------------------------------------
