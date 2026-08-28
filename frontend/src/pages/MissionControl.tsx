@@ -141,6 +141,12 @@ export default function MissionControl() {
               {historyLoading && (
                 <span className="text-[10px] font-mono text-[#38BDF8]/50">loading...</span>
               )}
+              <button
+                onClick={() => navigate('/investigations')}
+                className="ml-auto text-[10px] font-mono text-[#8A94A6] hover:text-[#38BDF8] transition-colors"
+              >
+                VIEW ALL →
+              </button>
             </div>
             <div className="space-y-2">
               {historyItems.map((item) => (
