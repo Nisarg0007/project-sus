@@ -203,7 +203,7 @@ class TestInvestigationAPIEdgeCases:
         # Should still return 404 (not 422)
         assert response.status_code == 404
 
-    def test_get_on_investigations_returns_405(self, client):
-        """GET on a POST-only endpoint should return 405."""
+    def test_get_on_investigations_run_not_found(self, client):
+        """GET /investigations/run should return 404 (no investigation ID 'run')."""
         response = client.get("/api/v1/investigations/run")
-        assert response.status_code == 405
+        assert response.status_code == 404
