@@ -8,8 +8,18 @@
  */
 
 import type { InvestigationRequest } from '../api/investigations';
-import { runInvestigation as apiRunInvestigation } from '../api/investigations';
+import {
+  runInvestigation as apiRunInvestigation,
+  getInvestigationHistory as apiGetInvestigationHistory,
+  getInvestigationById as apiGetInvestigationById,
+} from '../api/investigations';
 import { mapInvestigationResponse } from '../api/mappers/investigationMapper';
+import {
+  mapInvestigationList,
+  mapInvestigationDetail,
+  type InvestigationHistoryList,
+  type InvestigationHistoryDetail,
+} from '../api/mappers/investigationHistoryMapper';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -79,6 +89,69 @@ export async function runInvestigation(
       error: {
         status: 0,
         message: `Failed to process investigation response: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      },
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Investigation History
+// ---------------------------------------------------------------------------
+
+export async function getInvestigationHistory(
+  limit: number = 20,
+  offset: number = 0,
+): Promise<ServiceResult<InvestigationHistoryList>> {
+  const response = await apiGetInvestigationHistory(limit, offset);
+
+  if (!response.ok || !response.data) {
+    return {
+      data: null,
+      error: response.error || {
+        status: 0,
+        message: 'Failed to fetch investigation history',
+      },
+    };
+  }
+
+  try {
+    const mapped = mapInvestigationList(response.data);
+    return { data: mapped, error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: {
+        status: 0,
+        message: `Failed to process investigation history: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      },
+    };
+  }
+}
+
+export async function getInvestigationById(
+  investigationId: string,
+): Promise<ServiceResult<InvestigationHistoryDetail>> {
+  const response = await apiGetInvestigationById(investigationId);
+
+  if (!response.ok || !response.data) {
+    return {
+      data: null,
+      error: response.error || {
+        status: 0,
+        message: `Failed to fetch investigation ${investigationId}`,
+      },
+    };
+  }
+
+  try {
+    const mapped = mapInvestigationDetail(response.data);
+    return { data: mapped, error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: {
+        status: 0,
+        message: `Failed to process investigation detail: ${err instanceof Error ? err.message : 'Unknown error'}`,
       },
     };
   }

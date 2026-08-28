@@ -32,7 +32,15 @@ import {
   incidents,
   anomalies,
 } from './mockData';
-import { runInvestigation as apiRunInvestigation } from '../services/investigationService';
+import {
+  runInvestigation as apiRunInvestigation,
+  getInvestigationHistory as apiGetInvestigationHistory,
+  getInvestigationById as apiGetInvestigationById,
+} from '../services/investigationService';
+import type {
+  InvestigationHistoryList,
+  InvestigationHistoryDetail,
+} from '../api/mappers/investigationHistoryMapper';
 import { fetchMerchants, fetchMerchantDirectory, fetchMerchantProfile } from '../services/merchantService';
 import { fetchActivityEvents } from '../services/activityService';
 import { fetchFullIncidents } from '../services/incidentService';
@@ -69,6 +77,20 @@ const mockData = {
     // In mock mode, run the investigation against the real pipeline
     // but return the result in the same format as API mode
     return apiRunInvestigation(request ?? {});
+  },
+
+  // Investigation history — mock mode returns empty list
+  getInvestigationHistory: async (
+    _limit?: number,
+    _offset?: number,
+  ): Promise<InvestigationHistoryList> => {
+    return { total: 0, limit: _limit ?? 20, offset: _offset ?? 0, items: [] };
+  },
+
+  getInvestigationById: async (
+    _id: string,
+  ): Promise<InvestigationHistoryDetail | null> => {
+    return null;
   },
 };
 
@@ -151,5 +173,28 @@ export const dataSource = {
   /** Run a pipeline investigation (works in both modes). */
   runInvestigation: async (request?: InvestigationRequest) => {
     return mockData.runInvestigation(request);
+  },
+
+  /** Investigation history list. */
+  getInvestigationHistory: async (
+    limit?: number,
+    offset?: number,
+  ): Promise<InvestigationHistoryList> => {
+    if (getMode() === 'api') {
+      const result = await apiGetInvestigationHistory(limit, offset);
+      return result.data ?? mockData.getInvestigationHistory(limit, offset);
+    }
+    return mockData.getInvestigationHistory(limit, offset);
+  },
+
+  /** Single persisted investigation detail. */
+  getInvestigationById: async (
+    id: string,
+  ): Promise<InvestigationHistoryDetail | null> => {
+    if (getMode() === 'api') {
+      const result = await apiGetInvestigationById(id);
+      return result.data ?? mockData.getInvestigationById(id);
+    }
+    return mockData.getInvestigationById(id);
   },
 };
