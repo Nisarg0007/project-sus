@@ -49,8 +49,10 @@ class InvestigationHistoryService:
         merchant_filter: Optional[str] = None,
         created_from: Optional[datetime] = None,
         created_to: Optional[datetime] = None,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
     ) -> InvestigationListResponse:
-        """Return a paginated list of investigation runs, newest first.
+        """Return a paginated list of investigation runs.
 
         Args:
             db: Active database session.
@@ -61,6 +63,8 @@ class InvestigationHistoryService:
             merchant_filter: Partial match filter on merchant filter field.
             created_from: Lower bound for created_at timestamp.
             created_to: Upper bound for created_at timestamp.
+            sort_by: Column to sort by (created_at, total_results, etc.).
+            sort_order: Sort direction (asc or desc).
 
         Returns:
             Paginated list response with metadata.
@@ -75,8 +79,13 @@ class InvestigationHistoryService:
             created_to=created_to,
         )
 
+        sort_kwargs = dict(
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+
         total = repo.count_investigations(**filter_kwargs)
-        runs = repo.list_investigations(limit=limit, offset=offset, **filter_kwargs)
+        runs = repo.list_investigations(limit=limit, offset=offset, **filter_kwargs, **sort_kwargs)
 
         items = [
             InvestigationListItem(

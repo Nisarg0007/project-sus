@@ -1,59 +1,120 @@
 /**
  * Investigation History Page
  *
- * Displays a paginated list of persisted investigations with search and filters.
- * Each item is clickable and navigates to the InvestigationDetailPage.
+ * Displays a paginated list of persisted investigations with search, filters,
+ * and sorting. All state is persisted in URL query parameters for shareability.
  *
- * Data flow: dataSource.getInvestigationHistory(limit, offset, filters) → UI
+ * URL state: filters, sort_by, sort_order, page
+ * Data flow: URL → state → dataSource.getInvestigationHistory(limit, offset, filters) → UI
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Clock, Search, X } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Clock, Search, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { dataSource } from '../data/dataSource';
 import type { InvestigationHistoryItem } from '../api/mappers/investigationHistoryMapper';
 import type { InvestigationHistoryFilters } from '../api/investigations';
 
 const PAGE_SIZE = 10;
 
-interface FilterState {
-  investigationId: string;
-  status: string;
-  merchantFilter: string;
-  createdFrom: string;
-  createdTo: string;
+// ---------------------------------------------------------------------------
+// Sort configuration
+// ---------------------------------------------------------------------------
+
+const SORT_OPTIONS = [
+  { value: 'created_at', label: 'Date' },
+  { value: 'total_results', label: 'Windows' },
+  { value: 'spikes_detected', label: 'Spikes' },
+  { value: 'fraud_incidents', label: 'Fraud' },
+  { value: 'spike_rate', label: 'Spike Rate' },
+] as const;
+
+type SortBy = (typeof SORT_OPTIONS)[number]['value'];
+
+function isValidSortBy(v: string | null): v is SortBy {
+  return v !== null && (SORT_OPTIONS as readonly { value: string }[]).some((o) => o.value === v);
 }
 
-const EMPTY_FILTERS: FilterState = {
-  investigationId: '',
-  status: '',
-  merchantFilter: '',
-  createdFrom: '',
-  createdTo: '',
-};
+function isValidSortOrder(v: string | null): v is 'asc' | 'desc' {
+  return v === 'asc' || v === 'desc';
+}
 
-// ------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// URL ↔ State helpers
+// ---------------------------------------------------------------------------
+
+function readFiltersFromURL(params: URLSearchParams) {
+  return {
+    investigationId: params.get('investigation_id') ?? '',
+    status: params.get('status') ?? '',
+    merchantFilter: params.get('merchant_filter') ?? '',
+    createdFrom: params.get('created_from') ?? '',
+    createdTo: params.get('created_to') ?? '',
+  };
+}
+
+function readSortFromURL(params: URLSearchParams) {
+  return {
+    sortBy: isValidSortBy(params.get('sort_by')) ? params.get('sort_by') as SortBy : 'created_at',
+    sortOrder: isValidSortOrder(params.get('sort_order')) ? params.get('sort_order') as 'asc' | 'desc' : 'desc',
+  };
+}
+
+function readPageFromURL(params: URLSearchParams): number {
+  const p = parseInt(params.get('page') ?? '1', 10);
+  return isNaN(p) || p < 1 ? 1 : p;
+}
+
+function buildSearchParams(
+  filters: { investigationId: string; status: string; merchantFilter: string; createdFrom: string; createdTo: string },
+  sortBy: SortBy,
+  sortOrder: 'asc' | 'desc',
+  page: number,
+): URLSearchParams {
+  const p = new URLSearchParams();
+  if (filters.investigationId) p.set('investigation_id', filters.investigationId);
+  if (filters.status) p.set('status', filters.status);
+  if (filters.merchantFilter) p.set('merchant_filter', filters.merchantFilter);
+  if (filters.createdFrom) p.set('created_from', filters.createdFrom);
+  if (filters.createdTo) p.set('created_to', filters.createdTo);
+  if (sortBy !== 'created_at') p.set('sort_by', sortBy);
+  if (sortOrder !== 'desc') p.set('sort_order', sortOrder);
+  if (page > 1) p.set('page', String(page));
+  return p;
+}
+
+// ---------------------------------------------------------------------------
 // Main Page
-// ------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
 export default function InvestigationHistoryPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
+  // --- Read state from URL ---
+  const urlFilters = useMemo(() => readFiltersFromURL(searchParams), [searchParams]);
+  const urlSort = useMemo(() => readSortFromURL(searchParams), [searchParams]);
+  const urlPage = useMemo(() => readPageFromURL(searchParams), [searchParams]);
+  const hasActiveFilters = Object.values(urlFilters).some((v) => v !== '');
+
+  // --- Local edit state for filter inputs (not yet applied) ---
+  const [editFilters, setEditFilters] = useState(urlFilters);
+  const [sortBy, setSortBy] = useState<SortBy>(urlSort.sortBy);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(urlSort.sortOrder);
+
+  // --- Data state ---
   const [items, setItems] = useState<InvestigationHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
-  const [appliedFilters, setAppliedFilters] = useState<FilterState>(EMPTY_FILTERS);
 
-  const hasActiveFilters = Object.values(appliedFilters).some((v) => v !== '');
-  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+  const currentPage = urlPage;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const showingFrom = total === 0 ? 0 : offset + 1;
   const showingTo = Math.min(offset + PAGE_SIZE, total);
 
-  const buildFilters = useCallback((f: FilterState): InvestigationHistoryFilters => {
+  const buildApiFilters = useCallback((f: typeof urlFilters): InvestigationHistoryFilters => {
     const result: InvestigationHistoryFilters = {};
     if (f.investigationId) result.investigation_id = f.investigationId;
     if (f.status) result.status = f.status;
@@ -63,16 +124,29 @@ export default function InvestigationHistoryPage() {
     return result;
   }, []);
 
+  // --- Sync editFilters when URL changes externally ---
+  useEffect(() => {
+    setEditFilters(urlFilters);
+  }, [urlFilters]);
+
+  // --- Data fetching ---
   const loadPage = useCallback(
-    async (newOffset: number, activeFilters: FilterState) => {
+    async (page: number, filters: typeof urlFilters, sort: SortBy, order: 'asc' | 'desc') => {
+      const newOffset = (page - 1) * PAGE_SIZE;
       setLoading(true);
       try {
-        const apiFilters = buildFilters(activeFilters);
-        const hasAny = Object.keys(apiFilters).length > 0;
+        const apiFilters = buildApiFilters(filters);
+        // Add sort params to the filters object so they flow through the data layer
+        const fullFilters: InvestigationHistoryFilters = {
+          ...apiFilters,
+          sort_by: sort !== 'created_at' ? sort : undefined,
+          sort_order: order !== 'desc' ? order : undefined,
+        };
+        const hasAny = Object.values(fullFilters).some((v) => v !== undefined);
         const result = await dataSource.getInvestigationHistory(
           PAGE_SIZE,
           newOffset,
-          hasAny ? apiFilters : undefined,
+          hasAny ? fullFilters : undefined,
         );
         setItems(result.items);
         setTotal(result.total);
@@ -84,47 +158,72 @@ export default function InvestigationHistoryPage() {
         setLoading(false);
       }
     },
-    [buildFilters],
+    [buildApiFilters],
   );
 
+  // Fetch data whenever URL params change
   useEffect(() => {
-    loadPage(0, EMPTY_FILTERS);
-  }, [loadPage]);
+    loadPage(urlPage, urlFilters, urlSort.sortBy, urlSort.sortOrder);
+  }, [loadPage, urlPage, urlFilters, urlSort.sortBy, urlSort.sortOrder]);
 
+  // --- URL update helpers ---
+  const updateURL = useCallback(
+    (f: typeof urlFilters, sort: SortBy, order: 'asc' | 'desc', page: number) => {
+      const params = buildSearchParams(f, sort, order, page);
+      setSearchParams(params, { replace: true });
+    },
+    [setSearchParams],
+  );
+
+  // --- Filter actions ---
   const handleApplyFilters = () => {
-    setAppliedFilters(filters);
-    loadPage(0, filters);
+    updateURL(editFilters, sortBy, sortOrder, 1);
   };
 
   const handleClearFilters = () => {
-    setFilters(EMPTY_FILTERS);
-    setAppliedFilters(EMPTY_FILTERS);
-    loadPage(0, EMPTY_FILTERS);
+    const empty = { investigationId: '', status: '', merchantFilter: '', createdFrom: '', createdTo: '' };
+    setEditFilters(empty);
+    updateURL(empty, sortBy, sortOrder, 1);
   };
 
-  const handleFilterChange = (field: keyof FilterState, value: string) => {
-    setFilters((prev) => ({ ...prev, [field]: value }));
+  const handleFilterChange = (field: string, value: string) => {
+    setEditFilters((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Date validation
-  const dateError =
-    filters.createdFrom &&
-    filters.createdTo &&
-    filters.createdFrom > filters.createdTo
-      ? 'From date must be before To date'
-      : null;
+  // --- Sort actions ---
+  const handleSortByChange = (newSortBy: SortBy) => {
+    setSortBy(newSortBy);
+    updateURL(editFilters, newSortBy, sortOrder, 1);
+  };
+
+  const handleSortOrderToggle = () => {
+    const newOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+    setSortOrder(newOrder);
+    updateURL(editFilters, sortBy, newOrder, 1);
+  };
+
+  // --- Pagination ---
+  const goToPage = (page: number) => {
+    updateURL(urlFilters, sortBy, sortOrder, page);
+  };
 
   const goToPrev = () => {
-    if (offset > 0) {
-      loadPage(Math.max(0, offset - PAGE_SIZE), appliedFilters);
-    }
+    if (currentPage > 1) goToPage(currentPage - 1);
   };
 
   const goToNext = () => {
-    if (offset + PAGE_SIZE < total) {
-      loadPage(offset + PAGE_SIZE, appliedFilters);
-    }
+    if (currentPage < totalPages) goToPage(currentPage + 1);
   };
+
+  // --- Date validation ---
+  const dateError =
+    editFilters.createdFrom &&
+    editFilters.createdTo &&
+    editFilters.createdFrom > editFilters.createdTo
+      ? 'From date must be before To date'
+      : null;
+
+  const sortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? 'Date';
 
   return (
     <motion.div
@@ -177,7 +276,7 @@ export default function InvestigationHistoryPage() {
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#8A94A6]/40" />
               <input
                 type="text"
-                value={filters.investigationId}
+                value={editFilters.investigationId}
                 onChange={(e) => handleFilterChange('investigationId', e.target.value)}
                 placeholder="INV-..."
                 className="w-full pl-7 pr-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 placeholder:text-[#8A94A6]/30 focus:border-[#38BDF8]/40 focus:outline-none transition-colors"
@@ -191,7 +290,7 @@ export default function InvestigationHistoryPage() {
               STATUS
             </label>
             <select
-              value={filters.status}
+              value={editFilters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
               className="w-full px-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 focus:border-[#38BDF8]/40 focus:outline-none transition-colors appearance-none"
             >
@@ -207,7 +306,7 @@ export default function InvestigationHistoryPage() {
             </label>
             <input
               type="text"
-              value={filters.merchantFilter}
+              value={editFilters.merchantFilter}
               onChange={(e) => handleFilterChange('merchantFilter', e.target.value)}
               placeholder="merchant_001"
               className="w-full px-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 placeholder:text-[#8A94A6]/30 focus:border-[#38BDF8]/40 focus:outline-none transition-colors"
@@ -221,7 +320,7 @@ export default function InvestigationHistoryPage() {
             </label>
             <input
               type="date"
-              value={filters.createdFrom}
+              value={editFilters.createdFrom}
               onChange={(e) => handleFilterChange('createdFrom', e.target.value)}
               className="w-full px-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 focus:border-[#38BDF8]/40 focus:outline-none transition-colors [color-scheme:dark]"
             />
@@ -234,7 +333,7 @@ export default function InvestigationHistoryPage() {
             </label>
             <input
               type="date"
-              value={filters.createdTo}
+              value={editFilters.createdTo}
               onChange={(e) => handleFilterChange('createdTo', e.target.value)}
               className="w-full px-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 focus:border-[#38BDF8]/40 focus:outline-none transition-colors [color-scheme:dark]"
             />
@@ -248,8 +347,8 @@ export default function InvestigationHistoryPage() {
           </p>
         )}
 
-        {/* Filter actions */}
-        <div className="flex items-center gap-3 mt-3">
+        {/* Filter actions + Sort control */}
+        <div className="flex items-center gap-3 mt-3 flex-wrap">
           <button
             onClick={handleApplyFilters}
             disabled={!!dateError}
@@ -266,11 +365,37 @@ export default function InvestigationHistoryPage() {
               CLEAR FILTERS
             </button>
           )}
-          {hasActiveFilters && (
-            <span className="text-[10px] font-mono text-[#8A94A6]/60">
-              Filters active
+
+          {/* Sort controls */}
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-[9px] font-mono text-[#8A94A6] tracking-wider hidden sm:inline">
+              SORT BY
             </span>
-          )}
+            <div className="flex items-center">
+              <select
+                value={sortBy}
+                onChange={(e) => handleSortByChange(e.target.value as SortBy)}
+                className="px-2 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 focus:border-[#38BDF8]/40 focus:outline-none transition-colors appearance-none pr-6"
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={handleSortOrderToggle}
+                className="ml-1 p-1.5 text-[#8A94A6] hover:text-[#F3F4F6] transition-colors border border-[#1a1f2e]/60 bg-[#0B0F18]"
+                title={sortOrder === 'desc' ? 'Descending (click for ascending)' : 'Ascending (click for descending)'}
+              >
+                {sortOrder === 'desc' ? (
+                  <ArrowDown className="w-3.5 h-3.5" />
+                ) : (
+                  <ArrowUp className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -279,11 +404,16 @@ export default function InvestigationHistoryPage() {
         <div className="flex items-center justify-between mb-4">
           <span className="text-[11px] font-mono text-[#8A94A6]">
             Showing {showingFrom}–{showingTo} of {total}
+            {sortBy !== 'created_at' && (
+              <span className="text-[#38BDF8]/60 ml-2">
+                · sorted by {sortLabel} {sortOrder === 'asc' ? '↑' : '↓'}
+              </span>
+            )}
           </span>
           <div className="flex items-center gap-1">
             <button
               onClick={goToPrev}
-              disabled={offset === 0}
+              disabled={currentPage <= 1}
               className="p-1.5 text-[#8A94A6] hover:text-[#F3F4F6] disabled:text-[#8A94A6]/30 disabled:cursor-not-allowed transition-colors"
               aria-label="Previous page"
             >
@@ -294,7 +424,7 @@ export default function InvestigationHistoryPage() {
             </span>
             <button
               onClick={goToNext}
-              disabled={offset + PAGE_SIZE >= total}
+              disabled={currentPage >= totalPages}
               className="p-1.5 text-[#8A94A6] hover:text-[#F3F4F6] disabled:text-[#8A94A6]/30 disabled:cursor-not-allowed transition-colors"
               aria-label="Next page"
             >
@@ -360,7 +490,7 @@ export default function InvestigationHistoryPage() {
         <div className="space-y-2">
           <AnimatePresence mode="wait">
             <motion.div
-              key={offset}
+              key={`${offset}-${sortBy}-${sortOrder}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -380,7 +510,7 @@ export default function InvestigationHistoryPage() {
       )}
 
       {/* Bottom pagination */}
-      {!loading && total > PAGE_SIZE && (
+      {!loading && totalPages > 1 && (
         <div className="flex items-center justify-between mt-6 pt-4 border-t border-[#1a1f2e]/60">
           <span className="text-[11px] font-mono text-[#8A94A6]">
             Page {currentPage} of {totalPages}
@@ -388,14 +518,14 @@ export default function InvestigationHistoryPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={goToPrev}
-              disabled={offset === 0}
+              disabled={currentPage <= 1}
               className="px-3 py-1.5 text-[11px] font-mono text-[#8A94A6] border border-[#1a1f2e]/60 hover:border-[#2a3040] hover:text-[#F3F4F6] disabled:text-[#8A94A6]/30 disabled:border-[#1a1f2e]/30 disabled:cursor-not-allowed transition-all duration-200"
             >
               Previous
             </button>
             <button
               onClick={goToNext}
-              disabled={offset + PAGE_SIZE >= total}
+              disabled={currentPage >= totalPages}
               className="px-3 py-1.5 text-[11px] font-mono text-[#8A94A6] border border-[#1a1f2e]/60 hover:border-[#2a3040] hover:text-[#F3F4F6] disabled:text-[#8A94A6]/30 disabled:border-[#1a1f2e]/30 disabled:cursor-not-allowed transition-all duration-200"
             >
               Next

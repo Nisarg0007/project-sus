@@ -140,6 +140,8 @@ export interface InvestigationHistoryFilters {
   merchant_filter?: string;
   created_from?: string;
   created_to?: string;
+  sort_by?: string;
+  sort_order?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +176,8 @@ export async function getInvestigationHistory(
     if (filters.merchant_filter) query.set('merchant_filter', filters.merchant_filter);
     if (filters.created_from) query.set('created_from', filters.created_from);
     if (filters.created_to) query.set('created_to', filters.created_to);
+    if (filters.sort_by) query.set('sort_by', filters.sort_by);
+    if (filters.sort_order) query.set('sort_order', filters.sort_order);
   }
 
   return apiClient.get<BackendInvestigationListResponse>(

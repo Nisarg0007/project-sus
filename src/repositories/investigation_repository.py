@@ -138,6 +138,40 @@ class InvestigationRepository:
             stmt = stmt.where(InvestigationRun.created_at <= created_to)
         return stmt
 
+    # Allowed sort columns (maps string name → ORM column)
+    _SORT_COLUMNS = {
+        "created_at": InvestigationRun.created_at,
+        "total_results": InvestigationRun.total_results,
+        "spikes_detected": InvestigationRun.spikes_detected,
+        "fraud_incidents": InvestigationRun.fraud_incidents,
+        "spike_rate": InvestigationRun.spike_rate,
+    }
+
+    def _apply_sorting(
+        self,
+        stmt: Select,
+        *,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
+    ) -> Select:
+        """Apply ordering to a SELECT statement.
+
+        Defaults to created_at DESC (newest first) with a deterministic
+        secondary sort on investigation_id DESC for stable pagination.
+        """
+        if sort_by and sort_by in self._SORT_COLUMNS:
+            column = self._SORT_COLUMNS[sort_by]
+            if sort_order == "asc":
+                stmt = stmt.order_by(column.asc(), InvestigationRun.investigation_id.desc())
+            else:
+                stmt = stmt.order_by(column.desc(), InvestigationRun.investigation_id.desc())
+        else:
+            stmt = stmt.order_by(
+                InvestigationRun.created_at.desc(),
+                InvestigationRun.investigation_id.desc(),
+            )
+        return stmt
+
     def list_investigations(
         self,
         *,
@@ -148,15 +182,15 @@ class InvestigationRepository:
         merchant_filter: Optional[str] = None,
         created_from: Optional[datetime] = None,
         created_to: Optional[datetime] = None,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
     ) -> list[InvestigationRun]:
-        """List investigation runs, newest first, with optional filters.
+        """List investigation runs with optional filters and sorting.
 
-        Incidents are loaded via selectin for each run.
+        Defaults to created_at DESC. Incidents are loaded via selectin.
         """
-        stmt = (
-            select(InvestigationRun)
-            .options(selectinload(InvestigationRun.incidents))
-            .order_by(InvestigationRun.created_at.desc())
+        stmt = select(InvestigationRun).options(
+            selectinload(InvestigationRun.incidents)
         )
         stmt = self._apply_filters(
             stmt,
@@ -166,6 +200,7 @@ class InvestigationRepository:
             created_from=created_from,
             created_to=created_to,
         )
+        stmt = self._apply_sorting(stmt, sort_by=sort_by, sort_order=sort_order)
         return list(self.db.execute(stmt.offset(offset).limit(limit)).scalars().all())
 
     def count_investigations(

@@ -117,6 +117,10 @@ async def run_investigation(
 # ---------------------------------------------------------------------------
 
 
+VALID_SORT_BY = {"created_at", "total_results", "spikes_detected", "fraud_incidents", "spike_rate"}
+VALID_SORT_ORDER = {"asc", "desc"}
+
+
 @router.get("", response_model=InvestigationListResponse)
 async def list_investigations(
     db: Session = Depends(get_db),
@@ -137,16 +141,36 @@ async def list_investigations(
     created_to: Optional[datetime] = Query(
         None, description="Created on or before (ISO 8601)"
     ),
+    sort_by: Optional[str] = Query(
+        None,
+        description=f"Column to sort by. Allowed: {', '.join(sorted(VALID_SORT_BY))}",
+    ),
+    sort_order: Optional[str] = Query(
+        None,
+        description="Sort direction: asc or desc",
+    ),
 ) -> InvestigationListResponse:
-    """List persisted investigation runs with pagination and optional filters.
+    """List persisted investigation runs with pagination, filters, and sorting.
 
-    Returns investigations ordered by newest first, with summary statistics.
+    Default ordering is newest first (created_at DESC).
     Does not include individual incidents — use the detail endpoint for that.
     """
     if created_from and created_to and created_from > created_to:
         raise HTTPException(
             status_code=422,
             detail="created_from must not be after created_to",
+        )
+
+    if sort_by is not None and sort_by not in VALID_SORT_BY:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid sort_by '{sort_by}'. Allowed: {', '.join(sorted(VALID_SORT_BY))}",
+        )
+
+    if sort_order is not None and sort_order not in VALID_SORT_ORDER:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid sort_order '{sort_order}'. Allowed: asc, desc",
         )
 
     return investigation_history_service.list_investigations(
@@ -158,6 +182,8 @@ async def list_investigations(
         merchant_filter=merchant_filter,
         created_from=created_from,
         created_to=created_to,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
 
 
