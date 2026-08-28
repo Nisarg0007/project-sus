@@ -123,6 +123,72 @@ export interface BackendHealthResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Investigation Comparison types
+// ---------------------------------------------------------------------------
+
+export interface BackendMetricComparison {
+  label: string;
+  base_value: number;
+  compare_value: number;
+  absolute_change: number;
+  percentage_change: number | null;
+}
+
+export interface BackendSummaryComparison {
+  total_results: BackendMetricComparison;
+  spikes_detected: BackendMetricComparison;
+  fraud_incidents: BackendMetricComparison;
+  organic_incidents: BackendMetricComparison;
+  review_required: BackendMetricComparison;
+  baseline_windows: BackendMetricComparison;
+  spike_rate: BackendMetricComparison;
+}
+
+export interface BackendIncidentChange {
+  incident_id: string;
+  merchant_id: string;
+  severity_changed: boolean;
+  old_severity: string | null;
+  new_severity: string | null;
+  classification_changed: boolean;
+  old_classification: string | null;
+  new_classification: string | null;
+  fraud_probability_changed: boolean;
+  old_fraud_probability: number | null;
+  new_fraud_probability: number | null;
+  confidence_changed: boolean;
+  old_confidence: number | null;
+  new_confidence: number | null;
+  anomaly_score_changed: boolean;
+  old_anomaly_score: number | null;
+  new_anomaly_score: number | null;
+  predicted_cause_changed: boolean;
+  old_predicted_cause: string | null;
+  new_predicted_cause: string | null;
+}
+
+export interface BackendIncidentComparison {
+  only_in_base: string[];
+  only_in_compare: string[];
+  in_both: string[];
+  changed: BackendIncidentChange[];
+  unchanged_count: number;
+}
+
+export interface BackendInvestigationMeta {
+  investigation_id: string;
+  created_at: string;
+  status: string;
+}
+
+export interface BackendComparisonResponse {
+  base: BackendInvestigationMeta;
+  compare: BackendInvestigationMeta;
+  summary: BackendSummaryComparison;
+  incidents: BackendIncidentComparison;
+}
+
+// ---------------------------------------------------------------------------
 // Request types
 // ---------------------------------------------------------------------------
 
@@ -202,6 +268,18 @@ export async function rerunInvestigation(
 ): Promise<ApiResponse<BackendInvestigationResponse>> {
   return apiClient.post<BackendInvestigationResponse>(
     `/api/v1/investigations/${encodeURIComponent(investigationId)}/rerun`,
+  );
+}
+
+export async function compareInvestigations(
+  baseId: string,
+  compareId: string,
+): Promise<ApiResponse<BackendComparisonResponse>> {
+  const query = new URLSearchParams();
+  query.set('base_id', baseId);
+  query.set('compare_id', compareId);
+  return apiClient.get<BackendComparisonResponse>(
+    `/api/v1/investigations/compare?${query.toString()}`,
   );
 }
 

@@ -17,6 +17,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, model_validator
 from sqlalchemy.orm import Session
 
+from src.api.schemas.investigation_comparison import (
+    InvestigationComparisonResponse,
+)
 from src.api.schemas.investigation_history import (
     InvestigationDetailResponse,
     InvestigationListResponse,
@@ -29,6 +32,9 @@ from src.api.schemas.investigations import (
 )
 from src.config import settings
 from src.database.session import get_db
+from src.services.investigation_comparison_service import (
+    investigation_comparison_service,
+)
 from src.services.investigation_history_service import (
     investigation_history_service,
 )
@@ -180,6 +186,45 @@ async def rerun_investigation(
         total_results=result["total_results"],
         processing_note=result["processing_note"],
     )
+
+
+# ---------------------------------------------------------------------------
+# Investigation Comparison
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/compare",
+    response_model=InvestigationComparisonResponse,
+)
+async def compare_investigations(
+    base_id: str = Query(..., min_length=1, description="Base investigation ID"),
+    compare_id: str = Query(..., min_length=1, description="Comparison investigation ID"),
+    db: Session = Depends(get_db),
+) -> InvestigationComparisonResponse:
+    """Compare two persisted investigations side by side.
+
+    Returns summary metric changes and incident-level differences.
+    The original investigations are never modified.
+    """
+    if base_id == compare_id:
+        raise HTTPException(
+            status_code=422,
+            detail="base_id and compare_id must be different",
+        )
+
+    try:
+        return investigation_comparison_service.compare(
+            db=db, base_id=base_id, compare_id=compare_id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception("Unexpected error during investigation comparison")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Comparison error: {str(e)}",
+        )
 
 
 # ---------------------------------------------------------------------------

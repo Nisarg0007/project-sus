@@ -35,6 +35,7 @@ import {
 import {
   runInvestigation as apiRunInvestigation,
   rerunInvestigation as apiRerunInvestigation,
+  compareInvestigations as apiCompareInvestigations,
   getInvestigationHistory as apiGetInvestigationHistory,
   getInvestigationById as apiGetInvestigationById,
 } from '../services/investigationService';
@@ -42,6 +43,7 @@ import type {
   InvestigationHistoryList,
   InvestigationHistoryDetail,
 } from '../api/mappers/investigationHistoryMapper';
+import type { BackendComparisonResponse } from '../api/investigations';
 import type { InvestigationHistoryFilters } from '../api/investigations';
 import { fetchMerchants, fetchMerchantDirectory, fetchMerchantProfile } from '../services/merchantService';
 import { fetchActivityEvents } from '../services/activityService';
@@ -93,6 +95,13 @@ const mockData = {
   getInvestigationById: async (
     _id: string,
   ): Promise<InvestigationHistoryDetail | null> => {
+    return null;
+  },
+
+  compareInvestigations: async (
+    _baseId: string,
+    _compareId: string,
+  ): Promise<BackendComparisonResponse | null> => {
     return null;
   },
 };
@@ -209,5 +218,17 @@ export const dataSource = {
       return result.data ?? mockData.getInvestigationById(id);
     }
     return mockData.getInvestigationById(id);
+  },
+
+  /** Compare two investigations. */
+  compareInvestigations: async (
+    baseId: string,
+    compareId: string,
+  ): Promise<BackendComparisonResponse | null> => {
+    if (getMode() === 'api') {
+      const result = await apiCompareInvestigations(baseId, compareId);
+      return result.data ?? mockData.compareInvestigations(baseId, compareId);
+    }
+    return mockData.compareInvestigations(baseId, compareId);
   },
 };

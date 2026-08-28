@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Clock, Search, X, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Clock, Search, X, ArrowUp, ArrowDown, GitCompare } from 'lucide-react';
 import { dataSource } from '../data/dataSource';
 import type { InvestigationHistoryItem } from '../api/mappers/investigationHistoryMapper';
 import type { InvestigationHistoryFilters } from '../api/investigations';
@@ -108,6 +108,8 @@ export default function InvestigationHistoryPage() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
 
   const currentPage = urlPage;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -222,6 +224,25 @@ export default function InvestigationHistoryPage() {
     editFilters.createdFrom > editFilters.createdTo
       ? 'From date must be before To date'
       : null;
+
+  const handleToggleCompareMode = () => {
+    setCompareMode((prev) => !prev);
+    setSelectedForCompare([]);
+  };
+
+  const handleSelectForCompare = (id: string) => {
+    setSelectedForCompare((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 2) return [prev[1], id];
+      return [...prev, id];
+    });
+  };
+
+  const handleGoToCompare = () => {
+    if (selectedForCompare.length === 2) {
+      navigate(`/investigations/compare?base_id=${selectedForCompare[0]}&compare_id=${selectedForCompare[1]}`);
+    }
+  };
 
   const sortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? 'Date';
 
@@ -347,7 +368,7 @@ export default function InvestigationHistoryPage() {
           </p>
         )}
 
-        {/* Filter actions + Sort control */}
+        {/* Filter actions + Sort + Compare */}
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           <button
             onClick={handleApplyFilters}
@@ -364,6 +385,34 @@ export default function InvestigationHistoryPage() {
               <X className="w-3 h-3" />
               CLEAR FILTERS
             </button>
+          )}
+
+          {/* Compare mode toggle */}
+          <button
+            onClick={handleToggleCompareMode}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono tracking-wider transition-all duration-200 border ${
+              compareMode
+                ? 'text-[#FBBF24] bg-[#FBBF24]/8 border-[#FBBF24]/30'
+                : 'text-[#8A94A6] hover:text-[#F3F4F6] border-[#1a1f2e]/60'
+            }`}
+          >
+            <GitCompare className="w-3 h-3" />
+            {compareMode ? 'EXIT COMPARE' : 'COMPARE'}
+          </button>
+
+          {compareMode && selectedForCompare.length === 2 && (
+            <button
+              onClick={handleGoToCompare}
+              className="px-4 py-1.5 text-[11px] font-mono tracking-wider text-[#FBBF24] bg-[#FBBF24]/8 hover:bg-[#FBBF24]/15 border border-[#FBBF24]/30 transition-all duration-200"
+            >
+              COMPARE ({selectedForCompare.length})
+            </button>
+          )}
+
+          {compareMode && selectedForCompare.length > 0 && selectedForCompare.length < 2 && (
+            <span className="text-[10px] font-mono text-[#FBBF24]/60">
+              Select {2 - selectedForCompare.length} more
+            </span>
           )}
 
           {/* Sort controls */}
@@ -501,7 +550,12 @@ export default function InvestigationHistoryPage() {
                 <InvestigationRow
                   key={item.investigationId}
                   item={item}
-                  onClick={() => navigate(`/investigations/${item.investigationId}`)}
+                  onClick={() => {
+                    if (!compareMode) navigate(`/investigations/${item.investigationId}`);
+                  }}
+                  compareMode={compareMode}
+                  selected={selectedForCompare.includes(item.investigationId)}
+                  onSelect={() => handleSelectForCompare(item.investigationId)}
                 />
               ))}
             </motion.div>
@@ -544,9 +598,15 @@ export default function InvestigationHistoryPage() {
 function InvestigationRow({
   item,
   onClick,
+  compareMode = false,
+  selected = false,
+  onSelect,
 }: {
   item: InvestigationHistoryItem;
   onClick: () => void;
+  compareMode?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
 }) {
   const hasHighFraud = item.fraudIncidents > 0;
 
@@ -555,9 +615,28 @@ function InvestigationRow({
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      onClick={onClick}
-      className="flex items-center gap-6 py-3.5 px-5 border border-[#1E293B]/60 bg-[#0B0F18]/60 hover:border-[#38BDF8]/20 hover:bg-[#0D111A]/80 cursor-pointer transition-all duration-200"
+      onClick={compareMode ? onSelect : onClick}
+      className={`flex items-center gap-6 py-3.5 px-5 border bg-[#0B0F18]/60 cursor-pointer transition-all duration-200 ${
+        selected
+          ? 'border-[#FBBF24]/40 bg-[#FBBF24]/5'
+          : 'border-[#1E293B]/60 hover:border-[#38BDF8]/20 hover:bg-[#0D111A]/80'
+      }`}
     >
+      {/* Compare checkbox */}
+      {compareMode && (
+        <div
+          className={`w-4 h-4 rounded-sm border shrink-0 flex items-center justify-center transition-colors ${
+            selected ? 'bg-[#FBBF24] border-[#FBBF24]' : 'border-[#8A94A6]/40'
+          }`}
+        >
+          {selected && (
+            <svg className="w-2.5 h-2.5 text-[#0B0F18]" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M2 6l3 3 5-5" />
+            </svg>
+          )}
+        </div>
+      )}
+
       {/* Investigation ID */}
       <span className="text-[11px] font-mono text-[#38BDF8] tracking-wider shrink-0 w-[160px] truncate">
         {item.investigationId}

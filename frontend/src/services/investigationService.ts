@@ -11,9 +11,11 @@ import type { InvestigationRequest, InvestigationHistoryFilters } from '../api/i
 import {
   runInvestigation as apiRunInvestigation,
   rerunInvestigation as apiRerunInvestigation,
+  compareInvestigations as apiCompareInvestigations,
   getInvestigationHistory as apiGetInvestigationHistory,
   getInvestigationById as apiGetInvestigationById,
 } from '../api/investigations';
+import type { BackendComparisonResponse } from '../api/investigations';
 import { mapInvestigationResponse } from '../api/mappers/investigationMapper';
 import {
   mapInvestigationList,
@@ -126,6 +128,29 @@ export async function rerunInvestigation(
       },
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Investigation Comparison
+// ---------------------------------------------------------------------------
+
+export async function compareInvestigations(
+  baseId: string,
+  compareId: string,
+): Promise<ServiceResult<BackendComparisonResponse>> {
+  const response = await apiCompareInvestigations(baseId, compareId);
+
+  if (!response.ok || !response.data) {
+    return {
+      data: null,
+      error: response.error || {
+        status: 0,
+        message: 'Failed to compare investigations',
+      },
+    };
+  }
+
+  return { data: response.data, error: null };
 }
 
 // ---------------------------------------------------------------------------
