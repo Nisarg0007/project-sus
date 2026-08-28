@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.domain.enums import (
     ConfidenceBand,
@@ -50,6 +50,42 @@ class HealthResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Investigation Request
 # ---------------------------------------------------------------------------
+
+class RerunWithConfigRequest(BaseModel):
+    """Request to re-run an investigation with overridden parameters.
+
+    Any field that is omitted will inherit the value from the original
+    investigation's stored configuration. Setting a field to null or
+    empty string explicitly clears it.
+
+    Use ``model_fields_set`` to detect whether ``merchant_filter`` was
+    explicitly provided (omitted vs. explicitly null/empty).
+    """
+
+    z_threshold: Optional[float] = Field(
+        None,
+        description="Z-score threshold for spike detection. Overrides original if provided.",
+        gt=0.0,
+        le=10.0,
+    )
+    min_history_days: Optional[int] = Field(
+        None,
+        description="Minimum historical days for spike detection. Overrides original if provided.",
+        ge=1,
+    )
+    merchant_filter: Optional[str] = Field(
+        None,
+        description="Merchant ID filter. Overrides original if provided. Empty string clears the filter.",
+    )
+
+    @field_validator("merchant_filter")
+    @classmethod
+    def _normalize_merchant_filter(cls, v: Optional[str]) -> Optional[str]:
+        """Trim whitespace from merchant_filter. Empty/whitespace string becomes None."""
+        if v is not None:
+            v = v.strip() or None
+        return v
+
 
 class InvestigationRequest(BaseModel):
     """Request to run a pipeline investigation on transaction data.

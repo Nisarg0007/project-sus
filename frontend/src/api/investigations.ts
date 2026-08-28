@@ -271,6 +271,26 @@ export async function rerunInvestigation(
   );
 }
 
+// ---------------------------------------------------------------------------
+// Configurable Rerun
+// ---------------------------------------------------------------------------
+
+export interface RerunConfigOverrides {
+  z_threshold?: number | null;
+  min_history_days?: number | null;
+  merchant_filter?: string | null;
+}
+
+export async function rerunInvestigationWithConfig(
+  investigationId: string,
+  config: RerunConfigOverrides,
+): Promise<ApiResponse<BackendInvestigationResponse>> {
+  return apiClient.post<BackendInvestigationResponse>(
+    `/api/v1/investigations/${encodeURIComponent(investigationId)}/rerun-with-config`,
+    config,
+  );
+}
+
 export async function compareInvestigations(
   baseId: string,
   compareId: string,

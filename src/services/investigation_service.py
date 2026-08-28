@@ -148,6 +148,10 @@ class InvestigationService:
     It encapsulates all pipeline orchestration and domain model conversion.
     """
 
+    # Sentinel value: signals that the caller explicitly wants to clear
+    # the merchant_filter (as opposed to "not provided" which keeps original).
+    _CLEAR_MERCHANT_FILTER = object()
+
     def run_investigation(
         self,
         transactions_path: str = "data/raw/transactions.csv",
@@ -336,6 +340,22 @@ class InvestigationService:
                 exc_info=True,
             )
 
+    def _load_original_config(
+        self,
+        investigation_id: str,
+        db: Session,
+    ) -> "InvestigationRun":
+        """Load and validate the original investigation for rerun.
+
+        Shared by rerun_investigation() and rerun_investigation_with_config().
+        Returns the ORM object. Raises ValueError if not found.
+        """
+        repo = InvestigationRepository(db)
+        original = repo.get_by_investigation_id(investigation_id)
+        if original is None:
+            raise ValueError(f"Investigation '{investigation_id}' not found")
+        return original
+
     def rerun_investigation(
         self,
         investigation_id: str,
@@ -358,11 +378,7 @@ class InvestigationService:
         Raises:
             ValueError: If the original investigation is not found.
         """
-        repo = InvestigationRepository(db)
-        original = repo.get_by_investigation_id(investigation_id)
-
-        if original is None:
-            raise ValueError(f"Investigation '{investigation_id}' not found")
+        original = self._load_original_config(investigation_id, db)
 
         logger.info(
             "Re-running investigation %s with original configuration",
@@ -377,6 +393,66 @@ class InvestigationService:
             z_threshold=original.z_threshold,
             min_history_days=original.min_history_days,
             merchant_filter=original.merchant_filter,
+            db=db,
+        )
+
+    def rerun_investigation_with_config(
+        self,
+        investigation_id: str,
+        db: Session,
+        z_threshold: float | None = None,
+        min_history_days: int | None = None,
+        merchant_filter: str | None | object = None,
+    ) -> dict:
+        """Re-run an investigation with optional parameter overrides.
+
+        Loads the original configuration, applies any non-None overrides,
+        and delegates to run_investigation(). The original investigation
+        is never modified.
+
+        Args:
+            investigation_id: The business ID of the investigation to re-run.
+            db: Active database session.
+            z_threshold: Override for z-score threshold (None = keep original).
+            min_history_days: Override for min history days (None = keep original).
+            merchant_filter: Override for merchant filter. None = keep original.
+                Pass the sentinel _CLEAR_MERCHANT_FILTER to explicitly clear it.
+
+        Returns:
+            Dictionary with the new investigation results.
+
+        Raises:
+            ValueError: If the original investigation is not found.
+        """
+        original = self._load_original_config(investigation_id, db)
+
+        # Merge overrides: use override value if provided, else original
+        effective_z = z_threshold if z_threshold is not None else original.z_threshold
+        effective_min = min_history_days if min_history_days is not None else original.min_history_days
+
+        if merchant_filter is InvestigationService._CLEAR_MERCHANT_FILTER:
+            effective_merchant = None  # Explicitly clear the filter
+        elif merchant_filter is not None:
+            # User provided a value — normalize it
+            effective_merchant = merchant_filter.strip() or None
+        else:
+            effective_merchant = original.merchant_filter
+
+        logger.info(
+            "Re-running investigation %s with overrides: z=%.2f, min_days=%d, merchant=%s",
+            investigation_id,
+            effective_z,
+            effective_min,
+            effective_merchant or "all",
+        )
+
+        return self.run_investigation(
+            transactions_path=original.transactions_path,
+            window_labels_path=original.window_labels_path,
+            model_path=original.model_path,
+            z_threshold=effective_z,
+            min_history_days=effective_min,
+            merchant_filter=effective_merchant,
             db=db,
         )
 

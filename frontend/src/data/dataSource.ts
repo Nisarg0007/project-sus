@@ -35,6 +35,7 @@ import {
 import {
   runInvestigation as apiRunInvestigation,
   rerunInvestigation as apiRerunInvestigation,
+  rerunInvestigationWithConfig as apiRerunWithConfig,
   compareInvestigations as apiCompareInvestigations,
   getInvestigationHistory as apiGetInvestigationHistory,
   getInvestigationById as apiGetInvestigationById,
@@ -194,6 +195,18 @@ export const dataSource = {
     }
     // Mock mode: run the pipeline with default params
     return apiRerunInvestigation(investigationId);
+  },
+
+  /** Re-run a previous investigation with overridden configuration. */
+  rerunInvestigationWithConfig: async (
+    investigationId: string,
+    config: { z_threshold?: number | null; min_history_days?: number | null; merchant_filter?: string | null },
+  ) => {
+    if (getMode() === 'api') {
+      return apiRerunWithConfig(investigationId, config);
+    }
+    // Mock mode: run the pipeline with the given config
+    return apiRerunWithConfig(investigationId, config);
   },
 
   /** Investigation history list. */

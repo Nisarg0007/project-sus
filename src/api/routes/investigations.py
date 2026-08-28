@@ -29,6 +29,7 @@ from src.api.schemas.investigations import (
     InvestigationResponse,
     IncidentResponse,
     PipelineSummary,
+    RerunWithConfigRequest,
 )
 from src.config import settings
 from src.database.session import get_db
@@ -38,7 +39,7 @@ from src.services.investigation_comparison_service import (
 from src.services.investigation_history_service import (
     investigation_history_service,
 )
-from src.services.investigation_service import investigation_service
+from src.services.investigation_service import InvestigationService, investigation_service
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +154,84 @@ async def rerun_investigation(
         )
     except Exception as e:
         logger.exception("Unexpected error during investigation rerun")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal pipeline error: {str(e)}",
+        )
+
+    incident_responses = []
+    for incident in result["incidents"]:
+        incident_responses.append(
+            IncidentResponse(
+                id=incident.id,
+                merchant_id=incident.merchant_id,
+                date=incident.date,
+                severity=incident.severity,
+                status=incident.status,
+                classification=incident.classification,
+                fraud_probability=incident.fraud_probability,
+                confidence=incident.confidence,
+                confidence_band=incident.confidence_band,
+                anomaly_score=incident.anomaly_score,
+                decision_reason=incident.decision_reason,
+                anomaly_summary=incident.anomaly_summary,
+                top_signals=incident.top_signals,
+                recommended_action=incident.recommended_action,
+            )
+        )
+
+    return InvestigationResponse(
+        investigation_id=result["investigation_id"],
+        summary=result["summary"],
+        incidents=incident_responses,
+        total_results=result["total_results"],
+        processing_note=result["processing_note"],
+    )
+
+
+@router.post(
+    "/{investigation_id}/rerun-with-config",
+    response_model=InvestigationResponse,
+)
+async def rerun_investigation_with_config(
+    investigation_id: str,
+    request: RerunWithConfigRequest,
+    db: Session = Depends(get_db),
+) -> InvestigationResponse:
+    """Re-run an investigation with optional parameter overrides.
+
+    Loads the original investigation's stored configuration, applies any
+    non-null overrides from the request body, and executes a new investigation.
+    Creates a completely new investigation — the original is never modified.
+    """
+    # Determine effective merchant_filter:
+    # - If 'merchant_filter' was NOT in the request body → keep original (None)
+    # - If 'merchant_filter' was explicitly null/empty → clear it (_CLEAR_MERCHANT_FILTER)
+    # - If 'merchant_filter' has a value → use that value
+    effective_merchant_filter = None
+    if "merchant_filter" in request.model_fields_set:
+        if request.merchant_filter is None:
+            effective_merchant_filter = InvestigationService._CLEAR_MERCHANT_FILTER
+        else:
+            effective_merchant_filter = request.merchant_filter
+
+    try:
+        result = investigation_service.rerun_investigation_with_config(
+            investigation_id=investigation_id,
+            db=db,
+            z_threshold=request.z_threshold,
+            min_history_days=request.min_history_days,
+            merchant_filter=effective_merchant_filter,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Data file not found: {str(e)}",
+        )
+    except Exception as e:
+        logger.exception("Unexpected error during investigation rerun with config")
         raise HTTPException(
             status_code=500,
             detail=f"Internal pipeline error: {str(e)}",

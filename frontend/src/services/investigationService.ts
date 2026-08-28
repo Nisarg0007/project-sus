@@ -11,10 +11,12 @@ import type { InvestigationRequest, InvestigationHistoryFilters } from '../api/i
 import {
   runInvestigation as apiRunInvestigation,
   rerunInvestigation as apiRerunInvestigation,
+  rerunInvestigationWithConfig as apiRerunWithConfig,
   compareInvestigations as apiCompareInvestigations,
   getInvestigationHistory as apiGetInvestigationHistory,
   getInvestigationById as apiGetInvestigationById,
 } from '../api/investigations';
+import type { RerunConfigOverrides } from '../api/investigations';
 import type { BackendComparisonResponse } from '../api/investigations';
 import { mapInvestigationResponse } from '../api/mappers/investigationMapper';
 import {
@@ -125,6 +127,40 @@ export async function rerunInvestigation(
       error: {
         status: 0,
         message: `Failed to process rerun response: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      },
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Configurable Rerun
+// ---------------------------------------------------------------------------
+
+export async function rerunInvestigationWithConfig(
+  investigationId: string,
+  config: RerunConfigOverrides,
+): Promise<ServiceResult<InvestigationResult>> {
+  const response = await apiRerunWithConfig(investigationId, config);
+
+  if (!response.ok || !response.data) {
+    return {
+      data: null,
+      error: response.error || {
+        status: 0,
+        message: `Failed to rerun investigation ${investigationId} with config`,
+      },
+    };
+  }
+
+  try {
+    const mapped = mapInvestigationResponse(response.data);
+    return { data: mapped as InvestigationResult, error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: {
+        status: 0,
+        message: `Failed to process configurable rerun response: ${err instanceof Error ? err.message : 'Unknown error'}`,
       },
     };
   }

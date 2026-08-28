@@ -9,8 +9,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, FileText, RefreshCw } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, FileText, RefreshCw, X } from 'lucide-react';
 import { dataSource } from '../data/dataSource';
 import type { InvestigationHistoryDetail } from '../api/mappers/investigationHistoryMapper';
 import type { FullIncident } from '../types';
@@ -50,8 +50,26 @@ export default function InvestigationDetailPage() {
   const [detail, setDetail] = useState<InvestigationHistoryDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const [configValues, setConfigValues] = useState<{
+    zThreshold: string;
+    minHistoryDays: string;
+    merchantFilter: string;
+  }>({ zThreshold: '', minHistoryDays: '', merchantFilter: '' });
+  const [configError, setConfigError] = useState<string | null>(null);
   const [rerunning, setRerunning] = useState(false);
   const [rerunError, setRerunError] = useState<string | null>(null);
+
+  // Pre-populate config dialog when detail loads
+  useEffect(() => {
+    if (detail) {
+      setConfigValues({
+        zThreshold: detail.zThreshold.toFixed(2),
+        minHistoryDays: String(detail.minHistoryDays),
+        merchantFilter: detail.merchantFilter ?? '',
+      });
+    }
+  }, [detail]);
 
   useEffect(() => {
     if (!investigationId) return;
@@ -77,10 +95,32 @@ export default function InvestigationDetailPage() {
   const handleRerun = useCallback(async () => {
     if (!investigationId || rerunning) return;
     setRerunning(true);
+    setConfigError(null);
     setRerunError(null);
     try {
-      const result = await dataSource.rerunInvestigation(investigationId);
+      // Parse and validate config
+      const zThreshold = parseFloat(configValues.zThreshold);
+      const minHistoryDays = parseInt(configValues.minHistoryDays, 10);
+      const merchantFilter = configValues.merchantFilter.trim() || null;
+
+      if (isNaN(zThreshold) || zThreshold <= 0 || zThreshold > 10) {
+        setConfigError('Z Threshold must be between 0.01 and 10.0');
+        setRerunning(false);
+        return;
+      }
+      if (isNaN(minHistoryDays) || minHistoryDays < 1) {
+        setConfigError('Minimum History Days must be at least 1');
+        setRerunning(false);
+        return;
+      }
+
+      const result = await dataSource.rerunInvestigationWithConfig(investigationId, {
+        z_threshold: zThreshold,
+        min_history_days: minHistoryDays,
+        merchant_filter: merchantFilter,
+      });
       if (result.data) {
+        setShowConfigDialog(false);
         navigate(`/investigations/${result.data.investigationId}`);
       } else {
         setRerunError(result.error?.message ?? 'Rerun failed');
@@ -90,7 +130,7 @@ export default function InvestigationDetailPage() {
     } finally {
       setRerunning(false);
     }
-  }, [investigationId, rerunning, navigate]);
+  }, [investigationId, rerunning, navigate, configValues]);
 
   // --- Loading state ---
   if (loading) {
@@ -165,12 +205,12 @@ export default function InvestigationDetailPage() {
             {detail.status}
           </span>
           <button
-            onClick={handleRerun}
+            onClick={() => setShowConfigDialog(true)}
             disabled={rerunning}
             className="ml-auto flex items-center gap-2 px-3 py-1.5 text-[11px] font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 border border-[#38BDF8]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
-            <RefreshCw className={`w-3 h-3 ${rerunning ? 'animate-spin' : ''}`} />
-            {rerunning ? 'RE-RUNNING...' : 'RE-RUN INVESTIGATION'}
+            <RefreshCw className="w-3 h-3" />
+            RE-RUN INVESTIGATION
           </button>
         </div>
         <h1 className="text-2xl font-mono font-medium text-[#F3F4F6] tracking-tight mb-1">
@@ -185,6 +225,20 @@ export default function InvestigationDetailPage() {
           </p>
         )}
       </div>
+
+      {/* Config dialog */}
+      <AnimatePresence>
+        {showConfigDialog && (
+          <RerunConfigDialog
+            values={configValues}
+            onChange={setConfigValues}
+            error={configError}
+            loading={rerunning}
+            onCancel={() => { setShowConfigDialog(false); setConfigError(null); setRerunError(null); }}
+            onConfirm={handleRerun}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Divider */}
       <div className="h-px bg-[#1a1f2e]/60 mb-8" />
@@ -437,5 +491,152 @@ function MetricItem({
         {value}
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Rerun Configuration Dialog
+// ---------------------------------------------------------------------------
+
+function RerunConfigDialog({
+  values,
+  onChange,
+  error,
+  loading,
+  onCancel,
+  onConfirm,
+}: {
+  values: { zThreshold: string; minHistoryDays: string; merchantFilter: string };
+  onChange: (v: { zThreshold: string; minHistoryDays: string; merchantFilter: string }) => void;
+  error: string | null;
+  loading: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onCancel}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className="bg-[#0D111A] border border-[#1a1f2e] rounded-sm w-full max-w-md mx-4 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Dialog header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1f2e]/60">
+          <div>
+            <h3 className="text-sm font-medium text-[#F3F4F6]">Re-run Investigation</h3>
+            <p className="text-[10px] font-mono text-[#8A94A6] mt-1">
+              Override parameters before re-running
+            </p>
+          </div>
+          <button
+            onClick={onCancel}
+            className="p-1 text-[#8A94A6] hover:text-[#F3F4F6] transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Dialog body */}
+        <div className="px-5 py-5 space-y-4">
+          {/* Info note */}
+          <div className="bg-[#38BDF8]/5 border border-[#38BDF8]/10 rounded-sm px-4 py-3">
+            <p className="text-[11px] text-[#8A94A6] leading-relaxed">
+              This creates a <span className="text-[#38BDF8]">new investigation</span> with the configuration below.
+              The original investigation will not be modified.
+            </p>
+          </div>
+
+          {/* Z Threshold */}
+          <div>
+            <label className="block text-[10px] font-mono tracking-wider text-[#8A94A6] mb-1.5">
+              Z THRESHOLD
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              min="0.01"
+              max="10"
+              value={values.zThreshold}
+              onChange={(e) => onChange({ ...values, zThreshold: e.target.value })}
+              className="w-full bg-[#080B12] border border-[#1a1f2e]/80 rounded-sm px-3 py-2 text-sm font-mono text-[#F3F4F6] focus:outline-none focus:border-[#38BDF8]/40 transition-colors"
+            />
+            <p className="text-[9px] font-mono text-[#8A94A6]/50 mt-1">
+              Z-score threshold for spike detection (0.01–10.0)
+            </p>
+          </div>
+
+          {/* Min History Days */}
+          <div>
+            <label className="block text-[10px] font-mono tracking-wider text-[#8A94A6] mb-1.5">
+              MIN HISTORY DAYS
+            </label>
+            <input
+              type="number"
+              step="1"
+              min="1"
+              value={values.minHistoryDays}
+              onChange={(e) => onChange({ ...values, minHistoryDays: e.target.value })}
+              className="w-full bg-[#080B12] border border-[#1a1f2e]/80 rounded-sm px-3 py-2 text-sm font-mono text-[#F3F4F6] focus:outline-none focus:border-[#38BDF8]/40 transition-colors"
+            />
+            <p className="text-[9px] font-mono text-[#8A94A6]/50 mt-1">
+              Minimum days of history required for spike detection
+            </p>
+          </div>
+
+          {/* Merchant Filter */}
+          <div>
+            <label className="block text-[10px] font-mono tracking-wider text-[#8A94A6] mb-1.5">
+              MERCHANT FILTER
+            </label>
+            <input
+              type="text"
+              placeholder="All merchants (empty)"
+              value={values.merchantFilter}
+              onChange={(e) => onChange({ ...values, merchantFilter: e.target.value })}
+              className="w-full bg-[#080B12] border border-[#1a1f2e]/80 rounded-sm px-3 py-2 text-sm font-mono text-[#F3F4F6] placeholder-[#8A94A6]/30 focus:outline-none focus:border-[#38BDF8]/40 transition-colors"
+            />
+            <p className="text-[9px] font-mono text-[#8A94A6]/50 mt-1">
+              Filter results to a specific merchant (leave empty for all)
+            </p>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <p className="text-xs font-mono text-[#FF5C5C]">
+              {error}
+            </p>
+          )}
+        </div>
+
+        {/* Dialog footer */}
+        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-[#1a1f2e]/60">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="px-4 py-2 text-[11px] font-mono tracking-wider text-[#8A94A6] hover:text-[#F3F4F6] transition-colors"
+          >
+            CANCEL
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 text-[11px] font-mono tracking-wider text-[#0D111A] bg-[#38BDF8] hover:bg-[#60CCFA] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'RUNNING...' : 'RUN INVESTIGATION'}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
