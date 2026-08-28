@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { investigationAnomalies, getMerchant001Timeline } from '../data/mockData';
 import { InvestigationAnomaly, ActivityDataPoint } from '../types';
@@ -14,6 +15,7 @@ import { ClassifierReasoning } from '../components/mission/ClassifierReasoning';
 import { FinalVerdict } from '../components/mission/FinalVerdict';
 
 export default function MissionControl() {
+  const navigate = useNavigate();
   const [selectedAnomaly, setSelectedAnomaly] = useState<InvestigationAnomaly>(
     investigationAnomalies[0]
   );
@@ -147,7 +149,8 @@ export default function MissionControl() {
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="flex items-center gap-6 py-3 px-4 border border-[#1E293B]/60 bg-[#0B0F18]/60 hover:border-[#38BDF8]/20 transition-colors duration-200"
+                  onClick={() => navigate(`/investigations/${item.investigationId}`)}
+                  className="flex items-center gap-6 py-3 px-4 border border-[#1E293B]/60 bg-[#0B0F18]/60 hover:border-[#38BDF8]/20 hover:bg-[#0D111A]/80 cursor-pointer transition-all duration-200"
                 >
                   <span className="text-[10px] font-mono text-[#38BDF8] tracking-wider shrink-0">
                     {item.investigationId}

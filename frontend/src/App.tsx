@@ -7,6 +7,7 @@ import MissionControl from './pages/MissionControl';
 import Activity from './pages/Activity';
 import Incidents from './pages/Incidents';
 import Merchants from './pages/Merchants';
+import InvestigationDetailPage from './pages/InvestigationDetailPage';
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function AppContent() {
           <Route path="/activity" element={<Activity />} />
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/merchants" element={<Merchants />} />
+          <Route path="/investigations/:investigationId" element={<InvestigationDetailPage />} />
         </Routes>
       </Layout>
       <CommandPalette
