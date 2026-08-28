@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, select, func, case
 from sqlalchemy.orm import Session, selectinload
 
 from src.database.models import InvestigationRun, PersistedIncident
@@ -277,9 +277,7 @@ class InvestigationRepository:
         self.db.flush()
         return incident
 
-    def get_incidents_for_investigation(
-        self, investigation_id: str
-    ) -> list[PersistedIncident]:
+    def get_incidents_for_investigation(self, investigation_id: str) -> list[PersistedIncident]:
         """Return all incidents belonging to an investigation.
 
         Returns an empty list if the investigation does not exist
@@ -289,3 +287,184 @@ class InvestigationRepository:
         if run is None:
             return []
         return list(run.incidents)
+
+    # ------------------------------------------------------------------
+    # Analytics operations
+    # ------------------------------------------------------------------
+
+    def get_analytics_overview(
+        self,
+        *,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
+    ) -> dict:
+        """Compute aggregate overview statistics across investigations.
+
+        Returns a dict with total_investigations, completed_investigations,
+        sum totals for results/spikes/incidents, and averages.
+        All values are zero-safe (empty database returns zeros).
+        """
+        stmt = select(
+            func.count().label("total_investigations"),
+            func.sum(
+                case((InvestigationRun.status == "completed", 1), else_=0)
+            ).label("completed_investigations"),
+            func.coalesce(func.sum(InvestigationRun.total_results), 0).label("total_results"),
+            func.coalesce(func.sum(InvestigationRun.spikes_detected), 0).label("total_spikes_detected"),
+            func.coalesce(func.sum(InvestigationRun.fraud_incidents), 0).label("total_fraud_incidents"),
+            func.coalesce(func.sum(InvestigationRun.organic_incidents), 0).label("total_organic_incidents"),
+            func.coalesce(func.sum(InvestigationRun.review_required), 0).label("total_review_required"),
+            func.coalesce(func.avg(InvestigationRun.spike_rate), 0.0).label("average_spike_rate"),
+            func.coalesce(func.avg(InvestigationRun.fraud_incidents), 0.0).label("average_fraud_per_investigation"),
+        ).select_from(InvestigationRun)
+
+        stmt = self._apply_date_filters(stmt, created_from=created_from, created_to=created_to)
+
+        row = self.db.execute(stmt).one()
+        return {
+            "total_investigations": row.total_investigations,
+            "completed_investigations": row.completed_investigations or 0,
+            "total_results": int(row.total_results),
+            "total_spikes_detected": int(row.total_spikes_detected),
+            "total_fraud_incidents": int(row.total_fraud_incidents),
+            "total_organic_incidents": int(row.total_organic_incidents),
+            "total_review_required": int(row.total_review_required),
+            "average_spike_rate": float(row.average_spike_rate),
+            "average_fraud_per_investigation": float(row.average_fraud_per_investigation),
+        }
+
+    def get_status_distribution(
+        self,
+        *,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
+    ) -> list[dict]:
+        """Return investigation counts grouped by status."""
+        stmt = select(
+            InvestigationRun.status,
+            func.count().label("count"),
+        ).select_from(InvestigationRun)
+        stmt = self._apply_date_filters(stmt, created_from=created_from, created_to=created_to)
+        stmt = stmt.group_by(InvestigationRun.status).order_by(InvestigationRun.status)
+
+        rows = self.db.execute(stmt).all()
+        return [{"status": row.status, "count": row.count} for row in rows]
+
+    def get_activity_over_time(
+        self,
+        *,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
+    ) -> list[dict]:
+        """Return investigation activity grouped by calendar day.
+
+        Groups by date portion of created_at. Only includes days
+        that have at least one investigation. Sorted chronologically.
+        """
+        # SQLite: use date() to extract the date portion
+        stmt = select(
+            func.date(InvestigationRun.created_at).label("date"),
+            func.count().label("investigations"),
+            func.coalesce(func.sum(InvestigationRun.total_results), 0).label("total_results"),
+            func.coalesce(func.sum(InvestigationRun.spikes_detected), 0).label("spikes_detected"),
+            func.coalesce(func.sum(InvestigationRun.fraud_incidents), 0).label("fraud_incidents"),
+            func.coalesce(func.sum(InvestigationRun.organic_incidents), 0).label("organic_incidents"),
+            func.coalesce(func.sum(InvestigationRun.review_required), 0).label("review_required"),
+        ).select_from(InvestigationRun)
+        stmt = self._apply_date_filters(stmt, created_from=created_from, created_to=created_to)
+        stmt = (
+            stmt.group_by(func.date(InvestigationRun.created_at))
+            .order_by(func.date(InvestigationRun.created_at).asc())
+        )
+
+        rows = self.db.execute(stmt).all()
+        return [
+            {
+                "date": row.date,
+                "investigations": row.investigations,
+                "total_results": int(row.total_results),
+                "spikes_detected": int(row.spikes_detected),
+                "fraud_incidents": int(row.fraud_incidents),
+                "organic_incidents": int(row.organic_incidents),
+                "review_required": int(row.review_required),
+            }
+            for row in rows
+        ]
+
+    def get_top_merchants(
+        self,
+        *,
+        limit: int = 10,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
+    ) -> list[dict]:
+        """Return top merchants by investigation count.
+
+        Ignores investigations with null or empty merchant_filter.
+        Returns at most ``limit`` results, ordered by investigation_count
+        descending with deterministic secondary ordering.
+        """
+        stmt = (
+            select(
+                InvestigationRun.merchant_filter.label("merchant_filter"),
+                func.count().label("investigation_count"),
+                func.coalesce(func.sum(InvestigationRun.spikes_detected), 0).label("total_spikes_detected"),
+                func.coalesce(func.sum(InvestigationRun.fraud_incidents), 0).label("total_fraud_incidents"),
+            )
+            .select_from(InvestigationRun)
+            .where(InvestigationRun.merchant_filter.isnot(None))
+            .where(InvestigationRun.merchant_filter != "")
+        )
+        stmt = self._apply_date_filters(stmt, created_from=created_from, created_to=created_to)
+        stmt = (
+            stmt.group_by(InvestigationRun.merchant_filter)
+            .order_by(
+                func.count().desc(),
+                InvestigationRun.merchant_filter.asc(),
+            )
+            .limit(limit)
+        )
+
+        rows = self.db.execute(stmt).all()
+        return [
+            {
+                "merchant_filter": row.merchant_filter,
+                "investigation_count": row.investigation_count,
+                "total_spikes_detected": int(row.total_spikes_detected),
+                "total_fraud_incidents": int(row.total_fraud_incidents),
+            }
+            for row in rows
+        ]
+
+    def get_recent_investigations(
+        self,
+        *,
+        limit: int = 10,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
+    ) -> list[InvestigationRun]:
+        """Return the most recent investigation runs (newest first).
+
+        Does not load incidents — lightweight for analytics display.
+        """
+        stmt = select(InvestigationRun)
+        stmt = self._apply_date_filters(stmt, created_from=created_from, created_to=created_to)
+        stmt = stmt.order_by(
+            InvestigationRun.created_at.desc(),
+            InvestigationRun.investigation_id.desc(),
+        ).limit(limit)
+        return list(self.db.execute(stmt).scalars().all())
+
+    def _apply_date_filters(
+        self,
+        stmt: Select,
+        *,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
+    ) -> Select:
+        """Apply date range filters to a SELECT statement."""
+        if created_from:
+            stmt = stmt.where(InvestigationRun.created_at >= created_from)
+        if created_to:
+            stmt = stmt.where(InvestigationRun.created_at <= created_to)
+        return stmt

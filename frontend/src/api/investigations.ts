@@ -200,6 +200,67 @@ export interface InvestigationRequest {
   merchant_filter?: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Investigation Analytics types
+// ---------------------------------------------------------------------------
+
+export interface BackendAnalyticsPeriod {
+  created_from: string | null;
+  created_to: string | null;
+}
+
+export interface BackendAnalyticsOverview {
+  total_investigations: number;
+  completed_investigations: number;
+  total_results: number;
+  total_spikes_detected: number;
+  total_fraud_incidents: number;
+  total_organic_incidents: number;
+  total_review_required: number;
+  average_spike_rate: number;
+  average_fraud_per_investigation: number;
+}
+
+export interface BackendStatusCount {
+  status: string;
+  count: number;
+}
+
+export interface BackendActivityDay {
+  date: string;
+  investigations: number;
+  total_results: number;
+  spikes_detected: number;
+  fraud_incidents: number;
+  organic_incidents: number;
+  review_required: number;
+}
+
+export interface BackendMerchantAnalytics {
+  merchant_filter: string;
+  investigation_count: number;
+  total_spikes_detected: number;
+  total_fraud_incidents: number;
+}
+
+export interface BackendRecentInvestigation {
+  investigation_id: string;
+  created_at: string;
+  status: string;
+  total_results: number;
+  spikes_detected: number;
+  fraud_incidents: number;
+}
+
+export interface BackendAnalyticsResponse {
+  period: BackendAnalyticsPeriod;
+  overview: BackendAnalyticsOverview;
+  status_distribution: BackendStatusCount[];
+  activity_over_time: BackendActivityDay[];
+  top_merchants: BackendMerchantAnalytics[];
+  recent_activity: BackendRecentInvestigation[];
+}
+
 export interface InvestigationHistoryFilters {
   investigation_id?: string;
   status?: string;
@@ -306,6 +367,25 @@ export async function compareInvestigations(
 // ---------------------------------------------------------------------------
 // Health
 // ---------------------------------------------------------------------------
+
+export interface AnalyticsFilters {
+  created_from?: string;
+  created_to?: string;
+}
+
+export async function getInvestigationAnalytics(
+  filters?: AnalyticsFilters,
+): Promise<ApiResponse<BackendAnalyticsResponse>> {
+  const query = new URLSearchParams();
+  if (filters) {
+    if (filters.created_from) query.set('created_from', filters.created_from);
+    if (filters.created_to) query.set('created_to', filters.created_to);
+  }
+  const qs = query.toString();
+  return apiClient.get<BackendAnalyticsResponse>(
+    `/api/v1/investigations/analytics${qs ? `?${qs}` : ''}`,
+  );
+}
 
 export async function getHealth(): Promise<ApiResponse<BackendHealthResponse>> {
   return apiClient.get<BackendHealthResponse>('/health');

@@ -7,7 +7,7 @@
  * Components call this service. They never call fetch() or mappers directly.
  */
 
-import type { InvestigationRequest, InvestigationHistoryFilters } from '../api/investigations';
+import type { InvestigationRequest, InvestigationHistoryFilters, AnalyticsFilters, BackendAnalyticsResponse } from '../api/investigations';
 import {
   runInvestigation as apiRunInvestigation,
   rerunInvestigation as apiRerunInvestigation,
@@ -15,6 +15,7 @@ import {
   compareInvestigations as apiCompareInvestigations,
   getInvestigationHistory as apiGetInvestigationHistory,
   getInvestigationById as apiGetInvestigationById,
+  getInvestigationAnalytics as apiGetInvestigationAnalytics,
 } from '../api/investigations';
 import type { RerunConfigOverrides } from '../api/investigations';
 import type { BackendComparisonResponse } from '../api/investigations';
@@ -222,6 +223,28 @@ export async function getInvestigationHistory(
       },
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Investigation Analytics
+// ---------------------------------------------------------------------------
+
+export async function getInvestigationAnalytics(
+  filters?: AnalyticsFilters,
+): Promise<ServiceResult<BackendAnalyticsResponse>> {
+  const response = await apiGetInvestigationAnalytics(filters);
+
+  if (!response.ok || !response.data) {
+    return {
+      data: null,
+      error: response.error || {
+        status: 0,
+        message: 'Failed to fetch investigation analytics',
+      },
+    };
+  }
+
+  return { data: response.data, error: null };
 }
 
 export async function getInvestigationById(

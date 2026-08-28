@@ -39,13 +39,14 @@ import {
   compareInvestigations as apiCompareInvestigations,
   getInvestigationHistory as apiGetInvestigationHistory,
   getInvestigationById as apiGetInvestigationById,
+  getInvestigationAnalytics as apiGetInvestigationAnalytics,
 } from '../services/investigationService';
 import type {
   InvestigationHistoryList,
   InvestigationHistoryDetail,
 } from '../api/mappers/investigationHistoryMapper';
 import type { BackendComparisonResponse } from '../api/investigations';
-import type { InvestigationHistoryFilters } from '../api/investigations';
+import type { InvestigationHistoryFilters, AnalyticsFilters, BackendAnalyticsResponse } from '../api/investigations';
 import { fetchMerchants, fetchMerchantDirectory, fetchMerchantProfile } from '../services/merchantService';
 import { fetchActivityEvents } from '../services/activityService';
 import { fetchFullIncidents } from '../services/incidentService';
@@ -243,5 +244,17 @@ export const dataSource = {
       return result.data ?? mockData.compareInvestigations(baseId, compareId);
     }
     return mockData.compareInvestigations(baseId, compareId);
+  },
+
+  /** Investigation analytics. */
+  getInvestigationAnalytics: async (
+    filters?: AnalyticsFilters,
+  ): Promise<BackendAnalyticsResponse | null> => {
+    if (getMode() === 'api') {
+      const result = await apiGetInvestigationAnalytics(filters);
+      return result.data ?? null;
+    }
+    // Mock mode: return null (empty analytics)
+    return null;
   },
 };

@@ -39,6 +39,7 @@ from src.services.investigation_comparison_service import (
 from src.services.investigation_history_service import (
     investigation_history_service,
 )
+from src.services.investigation_analytics_service import investigation_analytics_service
 from src.services.investigation_service import InvestigationService, investigation_service
 
 logger = logging.getLogger(__name__)
@@ -379,6 +380,51 @@ async def list_investigations(
         sort_by=sort_by,
         sort_order=sort_order,
     )
+
+
+# ---------------------------------------------------------------------------
+# Investigation Analytics
+# ---------------------------------------------------------------------------
+
+from src.api.schemas.investigation_analytics import InvestigationAnalyticsResponse
+
+
+@router.get(
+    "/analytics",
+    response_model=InvestigationAnalyticsResponse,
+)
+async def get_investigation_analytics(
+    db: Session = Depends(get_db),
+    created_from: Optional[datetime] = Query(
+        None, description="Include investigations on or after this date (ISO 8601)"
+    ),
+    created_to: Optional[datetime] = Query(
+        None, description="Include investigations on or before this date (ISO 8601)"
+    ),
+) -> InvestigationAnalyticsResponse:
+    """Aggregate analytics across persisted investigations.
+
+    Returns overview statistics, status distribution, activity over time,
+    top merchants, and recent activity. Supports optional date filtering.
+    """
+    if created_from and created_to and created_from > created_to:
+        raise HTTPException(
+            status_code=422,
+            detail="created_from must not be after created_to",
+        )
+
+    try:
+        return investigation_analytics_service.get_analytics(
+            db=db,
+            created_from=created_from,
+            created_to=created_to,
+        )
+    except Exception as e:
+        logger.exception("Unexpected error during analytics computation")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Analytics error: {str(e)}",
+        )
 
 
 @router.get(

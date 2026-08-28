@@ -10,6 +10,7 @@ import Merchants from './pages/Merchants';
 import InvestigationDetailPage from './pages/InvestigationDetailPage';
 import InvestigationHistoryPage from './pages/InvestigationHistoryPage';
 import ComparisonPage from './pages/ComparisonPage';
+import InvestigationAnalyticsPage from './pages/InvestigationAnalyticsPage';
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function AppContent() {
           <Route path="/activity" element={<Activity />} />
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/merchants" element={<Merchants />} />
+          <Route path="/analytics" element={<InvestigationAnalyticsPage />} />
           <Route path="/investigations" element={<InvestigationHistoryPage />} />
           <Route path="/investigations/compare" element={<ComparisonPage />} />
           <Route path="/investigations/:investigationId" element={<InvestigationDetailPage />} />
