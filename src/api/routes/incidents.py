@@ -1,18 +1,46 @@
-"""Incident list API route."""
+"""Incident API routes.
+
+Provides:
+- GET /incidents — pipeline-derived incident queue (from ML pipeline)
+- GET /incidents/persisted — persisted incidents from the database
+- GET /incidents/{incident_id} — persisted incident detail with workflow
+- PATCH /incidents/{incident_id} — update analyst workflow metadata
+- GET /incidents/{incident_id}/history — status transition audit trail
+"""
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
+from src.api.schemas.incident_detail import (
+    IncidentDetailResponse,
+    IncidentUpdateRequest,
+    PersistedIncidentListResponse,
+    PersistedIncidentListItem,
+    StatusHistoryEntry,
+)
 from src.api.schemas.incidents import IncidentListItem, IncidentListResponse
+from src.database.session import get_db
+from src.repositories.incident_repository import IncidentRepository
 from src.services.incident_service import get_incidents
+from src.services.incident_workflow_service import (
+    IncidentWorkflowService,
+    _CLEAR_VALUE,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
+
+
+# ---------------------------------------------------------------------------
+# Pipeline-derived incident queue (existing)
+# ---------------------------------------------------------------------------
 
 
 @router.get("", response_model=IncidentListResponse)
@@ -37,3 +65,213 @@ async def list_incidents(
 
     items = [IncidentListItem(**i) for i in incidents]
     return IncidentListResponse(incidents=items, total=len(items))
+
+
+# ---------------------------------------------------------------------------
+# Persisted incident queue (database-backed)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/persisted", response_model=PersistedIncidentListResponse)
+async def list_persisted_incidents(
+    db: Session = Depends(get_db),
+    merchant_id: Optional[str] = Query(None, description="Filter by merchant ID"),
+    severity: Optional[str] = Query(None, description="Filter by severity"),
+    classification: Optional[str] = Query(None, description="Filter by classification"),
+    workflow_status: Optional[str] = Query(None, description="Filter by workflow status"),
+    limit: int = Query(50, ge=1, le=200, description="Items per page"),
+    offset: int = Query(0, ge=0, description="Items to skip"),
+) -> PersistedIncidentListResponse:
+    """List persisted incidents from the database with workflow metadata."""
+    service = IncidentWorkflowService(db)
+    incidents, total = service.list_incidents(
+        limit=limit,
+        offset=offset,
+        merchant_id=merchant_id,
+        severity=severity,
+        classification=classification,
+        workflow_status=workflow_status,
+    )
+    items = [_orm_to_list_item(inc) for inc in incidents]
+    return PersistedIncidentListResponse(
+        incidents=items, total=total, limit=limit, offset=offset
+    )
+
+
+# ---------------------------------------------------------------------------
+# Incident detail + workflow (static routes before dynamic)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{incident_id}",
+    response_model=IncidentDetailResponse,
+)
+async def get_incident_detail(
+    incident_id: str,
+    db: Session = Depends(get_db),
+) -> IncidentDetailResponse:
+    """Retrieve a persisted incident with ML evidence and analyst workflow."""
+    service = IncidentWorkflowService(db)
+    incident = service.get_incident_detail(incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Incident '{incident_id}' not found",
+        )
+    return _orm_to_detail(incident)
+
+
+@router.patch(
+    "/{incident_id}",
+    response_model=IncidentDetailResponse,
+)
+async def update_incident(
+    incident_id: str,
+    request: IncidentUpdateRequest,
+    db: Session = Depends(get_db),
+) -> IncidentDetailResponse:
+    """Update an incident's analyst workflow metadata.
+
+    Supports partial updates. Only provided fields are modified.
+    Status transitions are validated. A history record is created
+    when the workflow status changes.
+    """
+    service = IncidentWorkflowService(db)
+
+    # Resolve which fields were explicitly provided vs omitted.
+    # When a field is in the request body but set to null, it means "clear this field".
+    # When a field is omitted, it means "leave unchanged".
+    fields_set = request.model_fields_set
+    kwargs: dict = {}
+    if "workflow_status" in fields_set:
+        kwargs["workflow_status"] = request.workflow_status
+    if "assigned_analyst" in fields_set:
+        # null/empty means clear, value means set
+        kwargs["assigned_analyst"] = request.assigned_analyst if request.assigned_analyst else _CLEAR_VALUE
+    if "analyst_notes" in fields_set:
+        # null or empty means clear, non-empty means set
+        kwargs["analyst_notes"] = (
+            request.analyst_notes
+            if request.analyst_notes and request.analyst_notes.strip()
+            else _CLEAR_VALUE
+        )
+    if "resolution" in fields_set:
+        kwargs["resolution"] = request.resolution if request.resolution else _CLEAR_VALUE
+
+    try:
+        incident = service.update_incident(incident_id, **kwargs)
+    except ValueError as e:
+        msg = str(e)
+        if "not found" in msg.lower():
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=422, detail=msg)
+    except Exception as e:
+        logger.exception("Error updating incident %s", incident_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update incident: {str(e)}",
+        )
+
+    # Reload with history to return full detail
+    reloaded = service.get_incident_detail(incident_id)
+    return _orm_to_detail(reloaded or incident)
+
+
+@router.get(
+    "/{incident_id}/history",
+    response_model=list[StatusHistoryEntry],
+)
+async def get_incident_history(
+    incident_id: str,
+    db: Session = Depends(get_db),
+) -> list[StatusHistoryEntry]:
+    """Get the status transition history for an incident."""
+    service = IncidentWorkflowService(db)
+    incident = service.get_incident_detail(incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Incident '{incident_id}' not found",
+        )
+    repo = IncidentRepository(db)
+    history = repo.get_status_history(incident.id)
+    return [
+        StatusHistoryEntry(
+            old_status=h.old_status,
+            new_status=h.new_status,
+            changed_by=h.changed_by,
+            note=h.note,
+            created_at=h.created_at,
+        )
+        for h in history
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _orm_to_detail(incident) -> IncidentDetailResponse:
+    """Convert a PersistedIncident ORM object to a detail response."""
+    try:
+        top_signals = json.loads(incident.top_signals_json)
+    except (json.JSONDecodeError, TypeError):
+        top_signals = []
+
+    history = []
+    if hasattr(incident, "status_history") and incident.status_history:
+        history = [
+            StatusHistoryEntry(
+                old_status=h.old_status,
+                new_status=h.new_status,
+                changed_by=h.changed_by,
+                note=h.note,
+                created_at=h.created_at,
+            )
+            for h in incident.status_history
+        ]
+
+    return IncidentDetailResponse(
+        incident_id=incident.incident_id,
+        merchant_id=incident.merchant_id,
+        date=incident.date,
+        severity=incident.severity,
+        classification=incident.classification,
+        predicted_cause=incident.predicted_cause,
+        fraud_probability=incident.fraud_probability,
+        confidence=incident.confidence,
+        confidence_band=incident.confidence_band,
+        anomaly_score=incident.anomaly_score,
+        decision_reason=incident.decision_reason,
+        anomaly_summary=incident.anomaly_summary,
+        top_signals=top_signals,
+        recommended_action=incident.recommended_action,
+        workflow_status=incident.workflow_status,
+        assigned_analyst=incident.assigned_analyst,
+        analyst_notes=incident.analyst_notes,
+        resolution=incident.resolution,
+        created_at=incident.created_at,
+        updated_at=incident.updated_at,
+        status_history=history,
+    )
+
+
+def _orm_to_list_item(incident) -> PersistedIncidentListItem:
+    """Convert a PersistedIncident ORM object to a list item response."""
+    return PersistedIncidentListItem(
+        incident_id=incident.incident_id,
+        merchant_id=incident.merchant_id,
+        date=incident.date,
+        severity=incident.severity,
+        classification=incident.classification,
+        workflow_status=incident.workflow_status,
+        fraud_probability=incident.fraud_probability,
+        confidence=incident.confidence,
+        confidence_band=incident.confidence_band,
+        assigned_analyst=incident.assigned_analyst,
+        resolution=incident.resolution,
+        created_at=incident.created_at,
+        updated_at=incident.updated_at,
+    )
