@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Crosshair, Activity, AlertTriangle, Building2, Search, History, BarChart3 } from 'lucide-react';
+import { Crosshair, Activity, AlertTriangle, Building2, Search, History, BarChart3, ClipboardList } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useInvestigation } from '../../context/InvestigationContext';
 import { merchants } from '../../data/mockData';
@@ -15,6 +15,7 @@ const navItems: NavItemConfig[] = [
   { id: 'mission-control', label: 'Mission', path: '/', icon: <Crosshair className="w-3.5 h-3.5" /> },
   { id: 'activity', label: 'Activity', path: '/activity', icon: <Activity className="w-3.5 h-3.5" /> },
   { id: 'incidents', label: 'Incidents', path: '/incidents', icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+  { id: 'queue', label: 'Queue', path: '/incidents/persisted', icon: <ClipboardList className="w-3.5 h-3.5" /> },
   { id: 'merchants', label: 'Merchants', path: '/merchants', icon: <Building2 className="w-3.5 h-3.5" /> },
   { id: 'investigations', label: 'History', path: '/investigations', icon: <History className="w-3.5 h-3.5" /> },
   { id: 'analytics', label: 'Analytics', path: '/analytics', icon: <BarChart3 className="w-3.5 h-3.5" /> },
@@ -38,6 +39,8 @@ function ContextIndicator({ path }: { path: string }) {
     text = 'Overview';
   } else if (path === '/investigations') {
     text = 'All runs';
+  } else if (path === '/incidents/persisted') {
+    text = 'Workflow queue';
   } else if (path === '/analytics') {
     text = 'Aggregate insights';
   }

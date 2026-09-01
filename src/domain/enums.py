@@ -64,3 +64,26 @@ class InvestigationStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     AWAITING_REVIEW = "awaiting_review"
     COMPLETED = "completed"
+
+
+class WorkflowStatus(str, Enum):
+    """Analyst workflow status for an incident.
+
+    Tracks the human-operational lifecycle independent of ML classification.
+    The ML classification is immutable evidence; workflow status is
+    analyst-managed operational metadata.
+    """
+    OPEN = "open"
+    INVESTIGATING = "investigating"
+    RESOLVED = "resolved"
+    FALSE_POSITIVE = "false_positive"
+
+
+class ResolutionOutcome(str, Enum):
+    """Resolution outcome assigned by an analyst.
+
+    Only valid when workflow_status is RESOLVED or FALSE_POSITIVE.
+    """
+    CONFIRMED_FRAUD = "confirmed_fraud"
+    FALSE_POSITIVE = "false_positive"
+    INCONCLUSIVE = "inconclusive"

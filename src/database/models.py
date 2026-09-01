@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.base import Base
@@ -140,15 +140,37 @@ class PersistedIncident(Base):
     )
     recommended_action: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
-    # Timestamp
+    # Analyst workflow metadata
+    workflow_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="open", index=True
+    )
+    assigned_analyst: Mapped[Optional[str]] = mapped_column(
+        String(128), nullable=True
+    )
+    analyst_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resolution: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+
+    # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     # Relationship back to investigation run
     investigation_run: Mapped["InvestigationRun"] = relationship(
         back_populates="incidents",
+    )
+
+    # Status history
+    status_history: Mapped[list["IncidentStatusHistory"]] = relationship(
+        back_populates="incident",
+        cascade="all, delete-orphan",
+        order_by="IncidentStatusHistory.created_at",
     )
 
     # Composite indexes for common query patterns
@@ -164,5 +186,55 @@ class PersistedIncident(Base):
     def __repr__(self) -> str:
         return (
             f"<PersistedIncident {self.incident_id} "
-            f"severity={self.severity} classification={self.classification}>"
+            f"severity={self.severity} classification={self.classification} "
+            f"workflow={self.workflow_status}>"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Incident Status History
+# ---------------------------------------------------------------------------
+
+
+class IncidentStatusHistory(Base):
+    """Audit trail for workflow status transitions on an incident.
+
+    Records each time an analyst changes the workflow_status of an incident.
+    Only created when workflow_status actually changes (not on every update).
+    """
+
+    __tablename__ = "incident_status_history"
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Foreign key to parent incident
+    incident_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("persisted_incidents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Transition details
+    old_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    new_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    changed_by: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Timestamp
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    # Relationship back to incident
+    incident: Mapped["PersistedIncident"] = relationship(
+        back_populates="status_history",
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<IncidentStatusHistory {self.old_status} → {self.new_status} "
+            f"by={self.changed_by}>"
         )

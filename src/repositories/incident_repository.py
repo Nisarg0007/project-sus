@@ -18,7 +18,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import Select, select, func
 from sqlalchemy.orm import Session, selectinload
 
 from src.database.models import (
@@ -143,24 +143,39 @@ class IncidentRepository:
         )
         return list(self.db.execute(stmt).scalars().all())
 
-    def list_incidents(
+    # ------------------------------------------------------------------
+    # Filtering and sorting helpers
+    # ------------------------------------------------------------------
+
+    _SORT_COLUMNS = {
+        "created_at": PersistedIncident.created_at,
+        "updated_at": PersistedIncident.updated_at,
+        "severity": PersistedIncident.severity,
+        "fraud_probability": PersistedIncident.fraud_probability,
+        "confidence": PersistedIncident.confidence,
+    }
+
+    def _apply_filters(
         self,
+        stmt: Select,
         *,
-        limit: int = 50,
-        offset: int = 0,
+        search: Optional[str] = None,
         merchant_id: Optional[str] = None,
         severity: Optional[str] = None,
         classification: Optional[str] = None,
         workflow_status: Optional[str] = None,
-    ) -> list[PersistedIncident]:
-        """List persisted incidents with optional filters.
-
-        Used for the incident queue that shows persisted incidents
-        alongside workflow status.
-        """
-        stmt = select(PersistedIncident).options(
-            selectinload(PersistedIncident.status_history),
-        )
+        assigned_analyst: Optional[str] = None,
+        investigation_id: Optional[str] = None,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
+    ) -> Select:
+        """Apply optional filters to a SELECT on PersistedIncident."""
+        if search:
+            term = f"%{search}%"
+            stmt = stmt.where(
+                PersistedIncident.incident_id.ilike(term)
+                | PersistedIncident.merchant_id.ilike(term)
+            )
         if merchant_id:
             stmt = stmt.where(PersistedIncident.merchant_id == merchant_id)
         if severity:
@@ -169,30 +184,105 @@ class IncidentRepository:
             stmt = stmt.where(PersistedIncident.classification == classification)
         if workflow_status:
             stmt = stmt.where(PersistedIncident.workflow_status == workflow_status)
-        stmt = stmt.order_by(
-            PersistedIncident.created_at.desc(),
-            PersistedIncident.id.desc(),
+        if assigned_analyst:
+            stmt = stmt.where(
+                PersistedIncident.assigned_analyst.ilike(f"%{assigned_analyst}%")
+            )
+        if investigation_id:
+            from src.database.models import InvestigationRun
+
+            stmt = stmt.join(
+                InvestigationRun,
+                PersistedIncident.investigation_run_id == InvestigationRun.id,
+            ).where(InvestigationRun.investigation_id == investigation_id)
+        if created_from:
+            stmt = stmt.where(PersistedIncident.created_at >= created_from)
+        if created_to:
+            stmt = stmt.where(PersistedIncident.created_at <= created_to)
+        return stmt
+
+    def _apply_sorting(
+        self,
+        stmt: Select,
+        *,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
+    ) -> Select:
+        """Apply ordering with deterministic secondary sort."""
+        if sort_by and sort_by in self._SORT_COLUMNS:
+            column = self._SORT_COLUMNS[sort_by]
+            if sort_order == "asc":
+                stmt = stmt.order_by(column.asc(), PersistedIncident.id.desc())
+            else:
+                stmt = stmt.order_by(column.desc(), PersistedIncident.id.desc())
+        else:
+            stmt = stmt.order_by(
+                PersistedIncident.created_at.desc(),
+                PersistedIncident.id.desc(),
+            )
+        return stmt
+
+    def list_incidents(
+        self,
+        *,
+        limit: int = 20,
+        offset: int = 0,
+        search: Optional[str] = None,
+        merchant_id: Optional[str] = None,
+        severity: Optional[str] = None,
+        classification: Optional[str] = None,
+        workflow_status: Optional[str] = None,
+        assigned_analyst: Optional[str] = None,
+        investigation_id: Optional[str] = None,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
+    ) -> list[PersistedIncident]:
+        """List persisted incidents with filters, sorting, and pagination."""
+        stmt = select(PersistedIncident)
+        stmt = self._apply_filters(
+            stmt,
+            search=search,
+            merchant_id=merchant_id,
+            severity=severity,
+            classification=classification,
+            workflow_status=workflow_status,
+            assigned_analyst=assigned_analyst,
+            investigation_id=investigation_id,
+            created_from=created_from,
+            created_to=created_to,
         )
-        return list(self.db.execute(stmt.offset(offset).limit(limit)).scalars().all())
+        stmt = self._apply_sorting(stmt, sort_by=sort_by, sort_order=sort_order)
+        return list(
+            self.db.execute(stmt.offset(offset).limit(limit)).scalars().all()
+        )
 
     def count_incidents(
         self,
         *,
+        search: Optional[str] = None,
         merchant_id: Optional[str] = None,
         severity: Optional[str] = None,
         classification: Optional[str] = None,
         workflow_status: Optional[str] = None,
+        assigned_analyst: Optional[str] = None,
+        investigation_id: Optional[str] = None,
+        created_from: Optional[datetime] = None,
+        created_to: Optional[datetime] = None,
     ) -> int:
         """Return total count of persisted incidents matching filters."""
-        from sqlalchemy import func
-
         stmt = select(func.count()).select_from(PersistedIncident)
-        if merchant_id:
-            stmt = stmt.where(PersistedIncident.merchant_id == merchant_id)
-        if severity:
-            stmt = stmt.where(PersistedIncident.severity == severity)
-        if classification:
-            stmt = stmt.where(PersistedIncident.classification == classification)
-        if workflow_status:
-            stmt = stmt.where(PersistedIncident.workflow_status == workflow_status)
+        stmt = self._apply_filters(
+            stmt,
+            search=search,
+            merchant_id=merchant_id,
+            severity=severity,
+            classification=classification,
+            workflow_status=workflow_status,
+            assigned_analyst=assigned_analyst,
+            investigation_id=investigation_id,
+            created_from=created_from,
+            created_to=created_to,
+        )
         return self.db.execute(stmt).scalar_one()

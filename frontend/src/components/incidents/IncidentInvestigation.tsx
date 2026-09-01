@@ -1,8 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { FullIncident, BehavioralEvidence } from '../../types';
 import { IncidentTimeline } from './IncidentTimeline';
 import { RecommendedAction } from './RecommendedAction';
-import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink } from 'lucide-react';
+import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink, ArrowRight } from 'lucide-react';
 import { useNavigation } from '../../hooks/useNavigation';
 
 interface IncidentInvestigationProps {
@@ -48,7 +49,7 @@ export function IncidentInvestigation({ incident }: IncidentInvestigationProps) 
         exit={{ opacity: 0, y: -10 }}
         transition={{ duration: 0.3 }}
       >
-        {/* Incident ID + Severity */}
+        {/* Incident ID + Severity + Detail Link */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-mono text-[#8A94A6]/60 tracking-wider">
@@ -61,9 +62,12 @@ export function IncidentInvestigation({ incident }: IncidentInvestigationProps) 
               {incident.severity.toUpperCase()}
             </span>
           </div>
-          <span className="text-[10px] font-mono text-[#8A94A6] tracking-wider">
-            {incident.dateFormatted}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-mono text-[#8A94A6] tracking-wider">
+              {incident.dateFormatted}
+            </span>
+            <NavigateToDetailButton incidentId={incident.id} />
+          </div>
         </div>
 
         {/* Merchant + Headline */}
@@ -325,6 +329,19 @@ function MerchantLink({ merchantId, merchantName }: { merchantId: string; mercha
     >
       {merchantName}
       <ExternalLink className="w-3 h-3 opacity-50" />
+    </button>
+  );
+}
+
+function NavigateToDetailButton({ incidentId }: { incidentId: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      onClick={() => navigate(`/incidents/${incidentId}`)}
+      className="flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-mono tracking-wider uppercase text-[#38BDF8] border border-[#38BDF8]/20 hover:border-[#38BDF8]/50 hover:bg-[#38BDF8]/5 transition-all duration-200"
+    >
+      Full Detail
+      <ArrowRight className="w-2.5 h-2.5" />
     </button>
   );
 }

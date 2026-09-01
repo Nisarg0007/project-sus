@@ -49,7 +49,9 @@ import type { BackendComparisonResponse } from '../api/investigations';
 import type { InvestigationHistoryFilters, AnalyticsFilters, BackendAnalyticsResponse } from '../api/investigations';
 import { fetchMerchants, fetchMerchantDirectory, fetchMerchantProfile } from '../services/merchantService';
 import { fetchActivityEvents } from '../services/activityService';
-import { fetchFullIncidents } from '../services/incidentService';
+import { fetchFullIncidents, fetchIncidentDetail, saveIncidentUpdate, fetchPersistedIncidents } from '../services/incidentService';
+import type { IncidentDetail } from '../services/incidentService';
+import type { IncidentUpdatePayload, IncidentFilters } from '../api/incidentList';
 import type { InvestigationRequest } from '../api/investigations';
 
 // ---------------------------------------------------------------------------
@@ -256,5 +258,43 @@ export const dataSource = {
     }
     // Mock mode: return null (empty analytics)
     return null;
+  },
+
+  // -----------------------------------------------------------------------
+  // Persisted incidents (database-backed workflow)
+  // -----------------------------------------------------------------------
+
+  /** Get persisted incident detail with workflow metadata. */
+  getIncidentDetail: async (
+    incidentId: string,
+  ): Promise<IncidentDetail | null> => {
+    if (getMode() === 'api') {
+      const result = await fetchIncidentDetail(incidentId);
+      return result.data;
+    }
+    return null;
+  },
+
+  /** Update an incident's workflow metadata. */
+  saveIncidentUpdate: async (
+    incidentId: string,
+    payload: IncidentUpdatePayload,
+  ): Promise<IncidentDetail | null> => {
+    if (getMode() === 'api') {
+      const result = await saveIncidentUpdate(incidentId, payload);
+      return result.data;
+    }
+    // Mock mode: return null (mutations not supported)
+    return null;
+  },
+
+  /** List persisted incidents from the database. */
+  getPersistedIncidents: async (filters?: IncidentFilters) => {
+    if (getMode() === 'api') {
+      const result = await fetchPersistedIncidents(filters);
+      return result.data;
+    }
+    // Mock mode: return empty
+    return { incidents: [], total: 0, limit: filters?.limit ?? 20, offset: filters?.offset ?? 0 };
   },
 };

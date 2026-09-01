@@ -179,31 +179,43 @@ class IncidentWorkflowService:
     def list_incidents(
         self,
         *,
-        limit: int = 50,
+        limit: int = 20,
         offset: int = 0,
+        search: Optional[str] = None,
         merchant_id: Optional[str] = None,
         severity: Optional[str] = None,
         classification: Optional[str] = None,
         workflow_status: Optional[str] = None,
+        assigned_analyst: Optional[str] = None,
+        investigation_id: Optional[str] = None,
+        created_from=None,
+        created_to=None,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
     ) -> tuple[list[PersistedIncident], int]:
-        """List persisted incidents with optional filters.
+        """List persisted incidents with filters, sorting, and pagination.
 
         Returns (incidents, total_count).
         """
+        filter_kwargs = dict(
+            search=search,
+            merchant_id=merchant_id,
+            severity=severity,
+            classification=classification,
+            workflow_status=workflow_status,
+            assigned_analyst=assigned_analyst,
+            investigation_id=investigation_id,
+            created_from=created_from,
+            created_to=created_to,
+        )
         incidents = self._repo.list_incidents(
             limit=limit,
             offset=offset,
-            merchant_id=merchant_id,
-            severity=severity,
-            classification=classification,
-            workflow_status=workflow_status,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            **filter_kwargs,
         )
-        total = self._repo.count_incidents(
-            merchant_id=merchant_id,
-            severity=severity,
-            classification=classification,
-            workflow_status=workflow_status,
-        )
+        total = self._repo.count_incidents(**filter_kwargs)
         return incidents, total
 
 

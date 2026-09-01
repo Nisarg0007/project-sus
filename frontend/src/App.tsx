@@ -11,6 +11,8 @@ import InvestigationDetailPage from './pages/InvestigationDetailPage';
 import InvestigationHistoryPage from './pages/InvestigationHistoryPage';
 import ComparisonPage from './pages/ComparisonPage';
 import InvestigationAnalyticsPage from './pages/InvestigationAnalyticsPage';
+import IncidentDetailPage from './pages/IncidentDetailPage';
+import PersistedIncidentsPage from './pages/PersistedIncidentsPage';
 
 function App() {
   return (
@@ -45,6 +47,8 @@ function AppContent() {
           <Route path="/" element={<MissionControl />} />
           <Route path="/activity" element={<Activity />} />
           <Route path="/incidents" element={<Incidents />} />
+          <Route path="/incidents/persisted" element={<PersistedIncidentsPage />} />
+          <Route path="/incidents/:incidentId" element={<IncidentDetailPage />} />
           <Route path="/merchants" element={<Merchants />} />
           <Route path="/analytics" element={<InvestigationAnalyticsPage />} />
           <Route path="/investigations" element={<InvestigationHistoryPage />} />

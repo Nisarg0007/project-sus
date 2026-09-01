@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -32,6 +33,13 @@ from src.services.incident_workflow_service import (
     IncidentWorkflowService,
     _CLEAR_VALUE,
 )
+
+# Allowed sort fields and orders for persisted incidents
+VALID_INCIDENT_SORT_BY = {
+    "created_at", "updated_at", "severity",
+    "fraud_probability", "confidence",
+}
+VALID_INCIDENT_SORT_ORDER = {"asc", "desc"}
 
 logger = logging.getLogger(__name__)
 
@@ -75,22 +83,55 @@ async def list_incidents(
 @router.get("/persisted", response_model=PersistedIncidentListResponse)
 async def list_persisted_incidents(
     db: Session = Depends(get_db),
+    search: Optional[str] = Query(None, description="Search incident_id and merchant_id"),
     merchant_id: Optional[str] = Query(None, description="Filter by merchant ID"),
     severity: Optional[str] = Query(None, description="Filter by severity"),
     classification: Optional[str] = Query(None, description="Filter by classification"),
     workflow_status: Optional[str] = Query(None, description="Filter by workflow status"),
-    limit: int = Query(50, ge=1, le=200, description="Items per page"),
+    assigned_analyst: Optional[str] = Query(None, description="Search assigned analyst"),
+    investigation_id: Optional[str] = Query(None, description="Filter by investigation ID"),
+    created_from: Optional[datetime] = Query(None, description="Created on or after (ISO 8601)"),
+    created_to: Optional[datetime] = Query(None, description="Created on or before (ISO 8601)"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
     offset: int = Query(0, ge=0, description="Items to skip"),
+    sort_by: Optional[str] = Query(None, description=f"Sort field. Allowed: {', '.join(sorted(VALID_INCIDENT_SORT_BY))}"),
+    sort_order: Optional[str] = Query(None, description="Sort direction: asc or desc"),
 ) -> PersistedIncidentListResponse:
-    """List persisted incidents from the database with workflow metadata."""
+    """List persisted incidents from the database with filtering, sorting, and pagination."""
+    # Validate date range
+    if created_from and created_to and created_from > created_to:
+        raise HTTPException(
+            status_code=422,
+            detail="created_from must not be after created_to",
+        )
+
+    # Validate sort parameters
+    if sort_by is not None and sort_by not in VALID_INCIDENT_SORT_BY:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid sort_by '{sort_by}'. Allowed: {', '.join(sorted(VALID_INCIDENT_SORT_BY))}",
+        )
+    if sort_order is not None and sort_order not in VALID_INCIDENT_SORT_ORDER:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid sort_order '{sort_order}'. Allowed: asc, desc",
+        )
+
     service = IncidentWorkflowService(db)
     incidents, total = service.list_incidents(
         limit=limit,
         offset=offset,
+        search=search,
         merchant_id=merchant_id,
         severity=severity,
         classification=classification,
         workflow_status=workflow_status,
+        assigned_analyst=assigned_analyst,
+        investigation_id=investigation_id,
+        created_from=created_from,
+        created_to=created_to,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
     items = [_orm_to_list_item(inc) for inc in incidents]
     return PersistedIncidentListResponse(

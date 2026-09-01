@@ -60,7 +60,8 @@ class TestTableCreation:
         table_names = inspector.get_table_names()
         assert "investigation_runs" in table_names
         assert "persisted_incidents" in table_names
-        assert len(table_names) == 2
+        assert "incident_status_history" in table_names
+        assert len(table_names) == 3
 
     def test_investigation_runs_columns(self, db_engine):
         """investigation_runs table should have expected columns."""

@@ -78,7 +78,7 @@ class TestTableCreation:
         tables_after = _get_table_names(engine)
 
         assert tables_before == tables_after
-        assert len(tables_after) == 2
+        assert len(tables_after) == 3
 
 
 # ---------------------------------------------------------------------------
