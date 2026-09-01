@@ -144,12 +144,14 @@ def _register_routes(app: FastAPI) -> None:
     from src.api.routes.merchants import router as merchants_router
     from src.api.routes.activity import router as activity_router
     from src.api.routes.incidents import router as incidents_router
+    from src.api.routes.transactions import router as transactions_router
 
     app.include_router(health_router)
     app.include_router(investigations_router, prefix=settings.api_prefix)
     app.include_router(merchants_router, prefix=settings.api_prefix)
     app.include_router(activity_router, prefix=settings.api_prefix)
     app.include_router(incidents_router, prefix=settings.api_prefix)
+    app.include_router(transactions_router, prefix=settings.api_prefix)
 
 
 # ---------------------------------------------------------------------------

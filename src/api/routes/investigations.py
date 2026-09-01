@@ -31,6 +31,7 @@ from src.api.schemas.investigations import (
     PipelineSummary,
     RerunWithConfigRequest,
 )
+from src.api.schemas.transactions import RunInvestigationRequest
 from src.config import settings
 from src.database.session import get_db
 from src.services.investigation_comparison_service import (
@@ -49,28 +50,57 @@ router = APIRouter(prefix="/investigations", tags=["investigations"])
 
 @router.post("/run", response_model=InvestigationResponse)
 async def run_investigation(
-    request: InvestigationRequest,
+    request: RunInvestigationRequest,
     db: Session = Depends(get_db),
 ) -> InvestigationResponse:
     """Run a complete SUS pipeline investigation.
 
-    Accepts paths to transaction data and window labels, runs the full
-    detection → classification → explanation pipeline, and returns
-    structured results with incidents.
+    Supports two data modes:
+    - Default dataset: omit dataset_id to use the built-in demo data.
+    - Uploaded dataset: provide dataset_id from a prior upload.
+    - Direct paths: provide transactions_path directly.
 
     The endpoint delegates all ML logic to InvestigationService, which
     in turn calls the existing pipeline modules. No ML logic lives here.
     Results are persisted to the database when the pipeline succeeds.
     """
+    # Resolve data paths
+    transactions_path = request.transactions_path
+    window_labels_path = request.window_labels_path
+    data_source_name = "default"
+    dataset_id = request.dataset_id
+
+    if dataset_id and not transactions_path:
+        # Resolve from dataset_id
+        from src.services.dataset_manager import dataset_manager
+
+        record = dataset_manager.get_dataset(dataset_id)
+        if record is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Dataset '{dataset_id}' not found",
+            )
+        transactions_path = record.transactions_path
+        window_labels_path = record.window_labels_path or window_labels_path
+        data_source_name = record.source_name
+
+    # Fall back to defaults if nothing specified
+    if not transactions_path:
+        transactions_path = settings.raw_data_dir + "/transactions.csv"
+    if not window_labels_path:
+        window_labels_path = settings.raw_data_dir + "/window_labels.csv"
+
     try:
         result = investigation_service.run_investigation(
-            transactions_path=request.transactions_path,
-            window_labels_path=request.window_labels_path,
+            transactions_path=transactions_path,
+            window_labels_path=window_labels_path,
             model_path=request.model_path,
-            z_threshold=request.z_threshold,
-            min_history_days=settings.default_min_history_days,
+            z_threshold=request.z_threshold or settings.default_z_threshold,
+            min_history_days=request.min_history_days or settings.default_min_history_days,
             merchant_filter=request.merchant_filter,
             db=db,
+            dataset_id=dataset_id,
+            data_source_name=data_source_name,
         )
     except FileNotFoundError as e:
         raise HTTPException(

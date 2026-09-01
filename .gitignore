@@ -60,6 +60,9 @@ data/*.db-journal
 data/*.db-wal
 data/*.db-shm
 
+# Uploaded datasets
+data/uploads/
+
 # Trained model artifacts
 models/*
 !models/.gitkeep

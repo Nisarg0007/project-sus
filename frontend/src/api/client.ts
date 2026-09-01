@@ -104,6 +104,30 @@ export const apiClient = {
       body: body ? JSON.stringify(body) : undefined,
     });
   },
+
+  async upload<T>(path: string, formData: FormData): Promise<ApiResponse<T>> {
+    const url = `${API_BASE_URL}${path}`;
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        let detail: unknown;
+        try { detail = await response.json(); } catch { detail = await response.text(); }
+        return {
+          data: null as unknown as T,
+          ok: false,
+          error: { status: response.status, message: `HTTP ${response.status}: ${response.statusText}`, detail },
+        };
+      }
+      const data: T = await response.json();
+      return { data, ok: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Network error';
+      return { data: null as unknown as T, ok: false, error: { status: 0, message } };
+    }
+  },
 };
 
 export { API_BASE_URL };

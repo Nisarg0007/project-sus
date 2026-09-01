@@ -161,6 +161,8 @@ class InvestigationService:
         min_history_days: int = MIN_HISTORY_DAYS,
         merchant_filter: Optional[str] = None,
         db: Optional[Session] = None,
+        dataset_id: Optional[str] = None,
+        data_source_name: Optional[str] = None,
     ) -> dict:
         """Run a complete investigation through the SUS pipeline.
 
@@ -172,6 +174,8 @@ class InvestigationService:
             min_history_days: Minimum historical days for spike detection.
             merchant_filter: If set, filter results to this merchant.
             db: Optional database session. When provided, results are persisted.
+            dataset_id: Optional dataset ID from uploaded data.
+            data_source_name: Label identifying the data source.
 
         Returns:
             Dictionary with:
@@ -183,15 +187,17 @@ class InvestigationService:
         """
         investigation_id = f"INV-{uuid.uuid4().hex[:12].upper()}"
         processing_note = ""
+        effective_source_name = data_source_name or "default"
 
         logger.info(
-            "Starting investigation %s (threshold=%.2f, merchant=%s)",
+            "Starting investigation %s (threshold=%.2f, merchant=%s, source=%s)",
             investigation_id,
             z_threshold,
             merchant_filter or "all",
+            effective_source_name,
         )
 
-        # Load data
+        # Load data — prefer dataset_id path if provided
         logger.info("Loading data from %s", transactions_path)
         try:
             transactions = pd.read_csv(transactions_path)
@@ -204,8 +210,7 @@ class InvestigationService:
 
         logger.info(
             "Loaded %d transactions, %d window labels",
-            len(transactions),
-            len(window_labels),
+            len(transactions), len(window_labels),
         )
 
         # Run the core pipeline
@@ -267,6 +272,8 @@ class InvestigationService:
                 "z_threshold": z_threshold,
                 "min_history_days": min_history_days,
                 "merchant_filter": merchant_filter,
+                "dataset_id": dataset_id,
+                "data_source_name": effective_source_name,
             },
         }
 

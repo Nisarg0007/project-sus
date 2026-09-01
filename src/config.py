@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     # Data paths
     raw_data_dir: str = "data/raw"
     processed_data_dir: str = "data/processed"
+    upload_dir: str = "data/uploads"
 
     # Database
     database_url: str = "sqlite:///data/sus.db"
