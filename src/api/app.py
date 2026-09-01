@@ -43,32 +43,51 @@ async def lifespan(app: FastAPI):
         settings.app_version,
     )
 
-    # Initialize database tables if they don't exist
-    _initialize_database()
+    # Apply database migrations via Alembic
+    _run_database_migrations()
 
     yield
     logger.info("Shutting down %s", settings.app_name)
 
 
-def _initialize_database() -> None:
-    """Create all database tables if they don't exist.
+def _run_database_migrations() -> None:
+    """Apply Alembic migrations to bring the database schema up to date.
 
-    This is idempotent — running it multiple times will not affect
-    existing tables or data.
+    This runs ``alembic upgrade head`` which is idempotent — if the database
+    is already at the latest revision, no changes are made.
+
+    Design trade-off (single-process / local development):
+      Running migrations at startup is the simplest safe approach for the
+      current architecture. It keeps schema management co-located with the
+      application, avoids requiring a separate deployment step, and ensures
+      the schema is always compatible with the running code.
+
+      In a multi-process or production deployment, you would instead run
+      ``alembic upgrade head`` as a separate init-container / entrypoint
+      before starting the application server. That separation prevents
+      race conditions when multiple workers start simultaneously.
+
+    Failure behaviour:
+      Migration failures are logged at ERROR and re-raised — the application
+      will NOT start with an incompatible schema. This prevents silent data
+      corruption or confusing runtime errors downstream.
     """
     try:
-        from src.database import Base, engine
-
-        # Import models so SQLAlchemy metadata knows about all tables
+        # Ensure all ORM models are imported so Base.metadata is populated
         import src.database.models  # noqa: F401
 
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables initialized successfully")
+        from alembic.config import Config as AlembicConfig
+        from alembic import command as alembic_command
+
+        alembic_cfg = AlembicConfig("alembic.ini")
+        alembic_command.upgrade(alembic_cfg, "head")
+        logger.info("Database migrations applied successfully")
     except Exception:
-        logger.warning(
-            "Database initialization failed — persistence will be unavailable",
+        logger.error(
+            "Database migration failed — the application cannot start with an incompatible schema",
             exc_info=True,
         )
+        raise
 
 
 # ---------------------------------------------------------------------------
