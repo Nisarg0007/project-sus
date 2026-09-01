@@ -129,7 +129,7 @@ export default function InvestigationAnalyticsPage() {
         className="flex items-center gap-2 text-[11px] font-mono text-[#8A94A6] hover:text-[#38BDF8] transition-colors duration-200"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
-        MISSION CONTROL
+        INVESTIGATE
       </button>
 
       {/* Page header */}
@@ -267,11 +267,12 @@ export default function InvestigationAnalyticsPage() {
         <div className="flex flex-col items-center gap-4 py-12 mb-8 border border-[#1a1f2e]/60 bg-[#0D111A]/40">
           <Search className="w-8 h-8 text-[#8A94A6]/30" />
           <p className="text-sm text-[#8A94A6]">No investigation data available yet.</p>
+          <p className="text-[10px] font-mono text-[#8A94A6]/50">Run investigations to see aggregate analytics here.</p>
           <button
             onClick={() => navigate('/')}
             className="px-4 py-2 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 transition-colors"
           >
-            RUN YOUR FIRST INVESTIGATION
+            GO TO INVESTIGATE
           </button>
         </div>
       )}

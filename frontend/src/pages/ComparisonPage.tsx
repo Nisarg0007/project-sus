@@ -83,26 +83,20 @@ export default function ComparisonPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto pt-8 pb-24"
-      >
-        <BackButton onClick={() => navigate('/investigations')} />
-        <div className="mt-16 flex flex-col items-center gap-4 text-center">
+      >      <BackButton onClick={() => navigate('/investigations')} />
+      <div className="mt-16 flex flex-col items-center gap-4 text-center">
           <div className="w-12 h-12 rounded-full bg-[#1E293B]/60 flex items-center justify-center">
             <Search className="w-5 h-5 text-[#8A94A6]" />
           </div>
           <h2 className="text-lg font-medium text-[#F3F4F6]">Invalid comparison</h2>
           <p className="text-sm text-[#8A94A6] max-w-md">
-            Provide two different investigation IDs to compare.
-            {baseId === compareId && baseId && (
-              <span className="block mt-2 text-[#FF5C5C] text-xs">
-                Both IDs are the same — select two different investigations.
-              </span>
-            )}
+            Select two different investigation IDs from the history to compare their results.
           </p>
           <button
             onClick={() => navigate('/investigations')}
-            className="mt-2 px-4 py-2 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 rounded-sm transition-colors"
+            className="mt-2 px-4 py-2 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 transition-colors"
           >
-            GO TO INVESTIGATIONS
+            VIEW INVESTIGATION HISTORY
           </button>
         </div>
       </motion.div>

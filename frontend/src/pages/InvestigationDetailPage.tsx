@@ -141,7 +141,7 @@ export default function InvestigationDetailPage() {
         transition={{ duration: 0.3 }}
         className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto pt-8 pb-24"
       >
-        <BackButton onClick={() => navigate('/')} />
+        <BackButton onClick={() => navigate('/investigations')} />
         <div className="mt-12 flex flex-col items-center gap-4">
           <div className="w-5 h-5 border-2 border-[#38BDF8]/30 border-t-[#38BDF8] rounded-full animate-spin" />
           <span className="text-xs font-mono text-[#8A94A6]">Loading investigation...</span>
@@ -159,7 +159,7 @@ export default function InvestigationDetailPage() {
         transition={{ duration: 0.3 }}
         className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto pt-8 pb-24"
       >
-        <BackButton onClick={() => navigate('/')} />
+        <BackButton onClick={() => navigate('/investigations')} />
         <div className="mt-16 flex flex-col items-center gap-4 text-center">
           <div className="w-12 h-12 rounded-full bg-[#1E293B]/60 flex items-center justify-center">
             <FileText className="w-5 h-5 text-[#8A94A6]" />
@@ -167,17 +167,13 @@ export default function InvestigationDetailPage() {
           <h2 className="text-lg font-medium text-[#F3F4F6]">Investigation not found</h2>
           <p className="text-sm text-[#8A94A6] max-w-md">
             The investigation <span className="font-mono text-[#38BDF8]">{investigationId}</span> could not be found.
-            {dataSource.getMode() === 'mock' && (
-              <span className="block mt-2 text-xs text-[#8A94A6]/60">
-                Persisted investigations are only available in API mode.
-              </span>
-            )}
+            Run an investigation to generate results that appear here.
           </p>
           <button
             onClick={() => navigate('/')}
-            className="mt-4 px-4 py-2 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 rounded-sm transition-colors"
+            className="mt-4 px-4 py-2 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 transition-colors"
           >
-            RETURN TO MISSION CONTROL
+            GO TO INVESTIGATE
           </button>
         </div>
       </motion.div>
@@ -320,7 +316,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
       className="flex items-center gap-2 text-[11px] font-mono text-[#8A94A6] hover:text-[#38BDF8] transition-colors duration-200"
     >
       <ArrowLeft className="w-3.5 h-3.5" />
-      MISSION CONTROL
+      INVESTIGATIONS
     </button>
   );
 }

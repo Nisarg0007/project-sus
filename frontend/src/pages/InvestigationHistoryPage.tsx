@@ -259,7 +259,7 @@ export default function InvestigationHistoryPage() {
         className="flex items-center gap-2 text-[11px] font-mono text-[#8A94A6] hover:text-[#38BDF8] transition-colors duration-200"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
-        MISSION CONTROL
+        INVESTIGATE
       </button>
 
       {/* Page header */}
@@ -499,18 +499,13 @@ export default function InvestigationHistoryPage() {
           </div>
           <h2 className="text-lg font-medium text-[#F3F4F6]">No investigations yet</h2>
           <p className="text-sm text-[#8A94A6] max-w-md text-center">
-            Run your first investigation from Mission Control to see persisted results here.
-            {dataSource.getMode() === 'mock' && (
-              <span className="block mt-2 text-xs text-[#8A94A6]/60">
-                Investigation history is only available in API mode.
-              </span>
-            )}
+            Run your first investigation to start detecting unusual transaction activity.
           </p>
           <button
             onClick={() => navigate('/')}
-            className="mt-2 px-4 py-2 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 rounded-sm transition-colors"
+            className="mt-2 px-4 py-2 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 transition-colors"
           >
-            GO TO MISSION CONTROL
+            GO TO INVESTIGATE
           </button>
         </div>
       )}

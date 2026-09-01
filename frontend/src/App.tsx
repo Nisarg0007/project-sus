@@ -5,7 +5,7 @@ import { Layout } from './components/layout/Layout';
 import { CommandPalette } from './components/shared/CommandPalette';
 import MissionControl from './pages/MissionControl';
 import Activity from './pages/Activity';
-import Incidents from './pages/Incidents';
+import MockIncidents from './pages/Incidents';
 import Merchants from './pages/Merchants';
 import InvestigationDetailPage from './pages/InvestigationDetailPage';
 import InvestigationHistoryPage from './pages/InvestigationHistoryPage';
@@ -45,15 +45,17 @@ function AppContent() {
       <Layout>
         <Routes>
           <Route path="/" element={<MissionControl />} />
-          <Route path="/activity" element={<Activity />} />
-          <Route path="/incidents" element={<Incidents />} />
-          <Route path="/incidents/persisted" element={<PersistedIncidentsPage />} />
+          <Route path="/incidents" element={<PersistedIncidentsPage />} />
           <Route path="/incidents/:incidentId" element={<IncidentDetailPage />} />
-          <Route path="/merchants" element={<Merchants />} />
-          <Route path="/analytics" element={<InvestigationAnalyticsPage />} />
           <Route path="/investigations" element={<InvestigationHistoryPage />} />
           <Route path="/investigations/compare" element={<ComparisonPage />} />
           <Route path="/investigations/:investigationId" element={<InvestigationDetailPage />} />
+          <Route path="/analytics" element={<InvestigationAnalyticsPage />} />
+          {/* Preserved secondary routes — accessible via command palette or direct URL */}
+          <Route path="/activity" element={<Activity />} />
+          <Route path="/merchants" element={<Merchants />} />
+          <Route path="/incidents/mock" element={<MockIncidents />} />
+          <Route path="/incidents/persisted" element={<PersistedIncidentsPage />} />
         </Routes>
       </Layout>
       <CommandPalette
