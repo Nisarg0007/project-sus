@@ -19,7 +19,7 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.database.base import Base
-from src.database.models import InvestigationRun, PersistedIncident
+from src.database.models import Dataset, InvestigationRun, PersistedIncident
 
 
 # ---------------------------------------------------------------------------
@@ -55,13 +55,14 @@ class TestTableCreation:
     """Verify that database tables are created correctly."""
 
     def test_all_tables_created(self, db_engine):
-        """Metadata should create both tables."""
+        """Metadata should create all tables."""
         inspector = inspect(db_engine)
         table_names = inspector.get_table_names()
         assert "investigation_runs" in table_names
         assert "persisted_incidents" in table_names
         assert "incident_status_history" in table_names
-        assert len(table_names) == 3
+        assert "datasets" in table_names
+        assert len(table_names) == 4
 
     def test_investigation_runs_columns(self, db_engine):
         """investigation_runs table should have expected columns."""

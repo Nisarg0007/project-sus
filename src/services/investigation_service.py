@@ -297,6 +297,7 @@ class InvestigationService:
         try:
             run = repo.create_investigation(
                 investigation_id=result["investigation_id"],
+                dataset_id=input_params.get("dataset_id"),
                 transactions_path=input_params["transactions_path"],
                 window_labels_path=input_params["window_labels_path"],
                 model_path=input_params["model_path"],

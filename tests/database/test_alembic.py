@@ -197,11 +197,13 @@ class TestFreshUpgrade:
     """Verify that upgrading a fresh database creates all expected schema."""
 
     def test_creates_all_tables(self, migrated_db):
-        """Fresh upgrade creates investigation_runs, persisted_incidents, incident_status_history."""
+        """Fresh upgrade creates all expected tables."""
         tables = _get_tables(migrated_db)
         assert "investigation_runs" in tables
         assert "persisted_incidents" in tables
         assert "incident_status_history" in tables
+        assert "datasets" in tables
+        assert len(tables) == 4
 
     def test_creates_alembic_version(self, migrated_db):
         """Upgrade stamps the alembic_version table."""
@@ -218,6 +220,7 @@ class TestFreshUpgrade:
 
         expected = {
             "id", "investigation_id", "status", "created_at",
+            "dataset_id",
             "transactions_path", "window_labels_path", "model_path",
             "z_threshold", "min_history_days", "merchant_filter",
             "total_results", "spikes_detected", "fraud_incidents",
@@ -258,6 +261,22 @@ class TestFreshUpgrade:
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
 
+    def test_datasets_columns(self, migrated_db):
+        """datasets table has all expected columns."""
+        conn = sqlite3.connect(migrated_db)
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(datasets)")
+        columns = {row[1] for row in cursor.fetchall()}
+        conn.close()
+
+        expected = {
+            "id", "dataset_id", "original_filename", "stored_path",
+            "data_source_type", "row_count", "merchant_count",
+            "min_transaction_date", "max_transaction_date",
+            "validation_status", "validation_message", "created_at",
+        }
+        assert expected.issubset(columns), f"Missing columns: {expected - columns}"
+
 
 # ---------------------------------------------------------------------------
 # Tests: Idempotency
@@ -273,7 +292,7 @@ class TestIdempotency:
         # Should not raise
         _run_upgrade(fresh_db_url)
         tables = _get_tables(fresh_db)
-        assert len(tables) == 3
+        assert len(tables) == 4
 
     def test_upgrade_preserves_data(self, fresh_db):
         """Running upgrade on an already-migrated DB is a no-op."""
@@ -323,7 +342,7 @@ class TestDowngrade:
 
         # Verify tables exist
         tables_before = _get_tables(fresh_db)
-        assert len(tables_before) == 3
+        assert len(tables_before) == 4
 
         # Downgrade
         _run_downgrade(db_url)
@@ -354,6 +373,8 @@ class TestDowngrade:
         assert "investigation_runs" in tables
         assert "persisted_incidents" in tables
         assert "incident_status_history" in tables
+        assert "datasets" in tables
+        assert len(tables) == 4
 
         version = _get_alembic_version(fresh_db)
         assert version is not None

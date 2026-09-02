@@ -338,10 +338,12 @@ class TestUploadEndpoint:
                 data = response.json()
                 assert data["dataset_id"].startswith("DS-")
                 assert data["original_filename"] == "test_data.csv"
-
-                # Verify the file was stored
-                import os
-                assert os.path.exists(data["transactions_path"])
+                # Verify no filesystem path leakage
+                assert "transactions_path" not in data
+                assert "path" not in data or data.get("transactions_path") is None
+                # Verify metadata fields
+                assert data["row_count"] == 10
+                assert data["merchant_count"] == 1
         finally:
             tx_routes.dataset_manager = original_manager
 
@@ -414,31 +416,32 @@ class TestInvestigationWithDataset:
 
         app = create_app()
         import src.api.routes.transactions as tx_routes
-        import src.api.routes.investigations as inv_routes
         original_tx_manager = tx_routes.dataset_manager
 
-        # Store a valid dataset manually
-        csv_content = io.StringIO()
-        writer = csv.writer(csv_content)
-        writer.writerow(VALID_HEADER)
-        writer.writerows(_make_valid_rows(50))
-        csv_bytes = csv_content.getvalue().encode("utf-8")
-
-        record = test_manager.store_dataset(
-            transactions_content=csv_bytes,
-            original_filename="test.csv",
-        )
+        # Store a valid dataset manually via the upload endpoint
+        # (which now uses DB-backed storage)
         tx_routes.dataset_manager = test_manager
-        # Also patch the module-level import used by the investigations route
-        import src.services.dataset_manager as dm_mod
-        original_dm_mod = dm_mod.dataset_manager
-        dm_mod.dataset_manager = test_manager
 
         try:
             with TestClient(app, raise_server_exceptions=False) as client:
+                # First upload a dataset
+                csv_content = io.StringIO()
+                writer = csv.writer(csv_content)
+                writer.writerow(VALID_HEADER)
+                writer.writerows(_make_valid_rows(50))
+                csv_bytes = csv_content.getvalue().encode("utf-8")
+
+                upload_response = client.post(
+                    "/api/v1/transactions/upload",
+                    files={"file": ("test.csv", csv_bytes, "text/csv")},
+                )
+                assert upload_response.status_code == 200
+                dataset_id = upload_response.json()["dataset_id"]
+
+                # Now run investigation with that dataset_id
                 response = client.post(
                     "/api/v1/investigations/run",
-                    json={"dataset_id": record.dataset_id},
+                    json={"dataset_id": dataset_id},
                 )
                 # Should succeed (or 500 if pipeline fails, but not 404 for dataset)
                 assert response.status_code != 404 or "Dataset" not in response.text
@@ -448,7 +451,6 @@ class TestInvestigationWithDataset:
                     assert data["investigation_id"].startswith("INV-")
         finally:
             tx_routes.dataset_manager = original_tx_manager
-            dm_mod.dataset_manager = original_dm_mod
 
     def test_investigation_with_invalid_dataset_id(self):
         """Run investigation with nonexistent dataset_id returns 404."""

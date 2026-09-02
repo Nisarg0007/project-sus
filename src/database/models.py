@@ -22,6 +22,66 @@ from src.database.base import Base
 
 
 # ---------------------------------------------------------------------------
+# Dataset
+# ---------------------------------------------------------------------------
+
+
+class Dataset(Base):
+    """Metadata for an uploaded transaction dataset.
+
+    The actual CSV file lives on disk (or object storage). This table
+    stores the durable reference and validation metadata so that:
+    - Dataset metadata survives application restarts.
+    - Every investigation can be traced back to its source dataset.
+    - Analysts can see which data produced which results.
+    """
+
+    __tablename__ = "datasets"
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Business identifier (e.g. "DS-XXXXXXXXXXXX")
+    dataset_id: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True
+    )
+
+    # File metadata
+    original_filename: Mapped[str] = mapped_column(String(256), nullable=False)
+    stored_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    data_source_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="csv"
+    )
+
+    # Validation / inspection metadata
+    row_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    merchant_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    min_transaction_date: Mapped[Optional[str]] = mapped_column(
+        String(32), nullable=True
+    )
+    max_transaction_date: Mapped[Optional[str]] = mapped_column(
+        String(32), nullable=True
+    )
+    validation_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="pending"
+    )
+    validation_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<Dataset {self.dataset_id} "
+            f"filename={self.original_filename} "
+            f"status={self.validation_status}>"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Investigation Run
 # ---------------------------------------------------------------------------
 
@@ -41,6 +101,11 @@ class InvestigationRun(Base):
     # Business identifier (e.g. "INV-XXXXXXXXXXXX")
     investigation_id: Mapped[str] = mapped_column(
         String(64), unique=True, nullable=False, index=True
+    )
+
+    # Link to source dataset (nullable for default dataset investigations)
+    dataset_id: Mapped[Optional[str]] = mapped_column(
+        String(64), nullable=True, index=True
     )
 
     # Run status

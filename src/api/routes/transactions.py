@@ -1,9 +1,11 @@
 """
-Transaction upload and validation endpoints for SUS.
+Transaction upload, validation, and dataset endpoints for SUS.
 
 Provides:
 - POST /transactions/upload — upload a transaction CSV dataset
 - POST /transactions/validate — validate a transaction CSV without storing
+- GET  /transactions/datasets — list stored datasets
+- GET  /transactions/datasets/{dataset_id} — get dataset metadata
 """
 
 from __future__ import annotations
@@ -11,13 +13,17 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy.orm import Session
 
 from src.api.schemas.transactions import (
+    DatasetListResponse,
+    DatasetMetadataResponse,
     TransactionUploadResponse,
     TransactionValidationResponse,
 )
-from src.services.dataset_manager import dataset_manager
+from src.database.session import get_db
+from src.services.dataset_manager import DatasetManager
 from src.services.transaction_data_provider import CSVTransactionDataProvider
 
 logger = logging.getLogger(__name__)
@@ -27,6 +33,24 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 # Maximum upload size: 100 MB
 MAX_UPLOAD_SIZE = 100 * 1024 * 1024
 
+# Module-level manager (no in-memory state — all state is in DB)
+dataset_manager = DatasetManager()
+
+
+def _ds_to_response(ds) -> DatasetMetadataResponse:
+    """Convert a Dataset ORM object to API response (no filesystem paths)."""
+    return DatasetMetadataResponse(
+        dataset_id=ds.dataset_id,
+        original_filename=ds.original_filename,
+        data_source_type=ds.data_source_type,
+        row_count=ds.row_count,
+        merchant_count=ds.merchant_count,
+        min_transaction_date=ds.min_transaction_date,
+        max_transaction_date=ds.max_transaction_date,
+        validation_status=ds.validation_status,
+        created_at=ds.created_at.isoformat() if ds.created_at else "",
+    )
+
 
 @router.post("/upload", response_model=TransactionUploadResponse)
 async def upload_transaction_csv(
@@ -34,12 +58,13 @@ async def upload_transaction_csv(
     window_labels_file: Optional[UploadFile] = File(
         None, description="Optional window labels CSV file"
     ),
+    db: Session = Depends(get_db),
 ) -> TransactionUploadResponse:
     """Upload a transaction CSV dataset for use in investigations.
 
     The uploaded file is stored in the configured upload directory with a
-    unique dataset ID. Returns the dataset ID which can be used when running
-    an investigation.
+    unique dataset ID. Metadata is persisted to the database.
+    Returns the dataset ID which can be used when running an investigation.
     """
     # Validate file type
     if not file.filename:
@@ -76,9 +101,8 @@ async def upload_transaction_csv(
 
     # Validate before storing
     try:
-        # Write to a temp location for validation, then store
-        import tempfile
         import os
+        import tempfile
 
         with tempfile.NamedTemporaryFile(
             delete=False, suffix=".csv", mode="wb"
@@ -112,31 +136,36 @@ async def upload_transaction_csv(
             detail=f"Validation error: {e}",
         )
 
-    # Store the dataset
+    # Store the dataset (DB-backed metadata)
     try:
-        record = dataset_manager.store_dataset(
+        ds = dataset_manager.store_dataset(
+            db=db,
             transactions_content=content,
             original_filename=file.filename,
             window_labels_content=wl_content,
             window_labels_filename=wl_filename,
+            row_count=validation.total_rows,
+            merchant_count=validation.metadata.get("unique_merchants"),
+            min_transaction_date=validation.metadata.get("date_range_start"),
+            max_transaction_date=validation.metadata.get("date_range_end"),
         )
-    except Exception as e:
+        db.commit()
+    except Exception:
+        db.rollback()
         logger.exception("Failed to store dataset")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to store dataset: {e}",
+            detail="Failed to store dataset",
         )
 
-    logger.info(
-        "Dataset uploaded: %s (%s)", record.dataset_id, file.filename
-    )
+    logger.info("Dataset uploaded: %s (%s)", ds.dataset_id, file.filename)
 
     return TransactionUploadResponse(
-        dataset_id=record.dataset_id,
-        original_filename=record.original_filename,
-        source_name=record.source_name,
-        transactions_path=record.transactions_path,
-        window_labels_path=record.window_labels_path,
+        dataset_id=ds.dataset_id,
+        original_filename=ds.original_filename,
+        source_name=f"upload:{file.filename}",
+        row_count=ds.row_count,
+        merchant_count=ds.merchant_count,
     )
 
 
@@ -163,8 +192,8 @@ async def validate_transaction_csv(
         )
 
     # Write to temp file for validation
-    import tempfile
     import os
+    import tempfile
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".csv", mode="wb") as tmp:
         tmp.write(content)
@@ -193,3 +222,56 @@ async def validate_transaction_csv(
         amount_min=result.metadata.get("amount_min"),
         amount_max=result.metadata.get("amount_max"),
     )
+
+
+# -----------------------------------------------------------------------
+# Dataset read-only endpoints
+# -----------------------------------------------------------------------
+
+
+@router.get("/datasets", response_model=DatasetListResponse)
+async def list_datasets(
+    db: Session = Depends(get_db),
+    limit: int = 50,
+    offset: int = 0,
+) -> DatasetListResponse:
+    """List stored datasets with metadata.
+
+    Returns dataset metadata only — no raw transaction contents or
+    server filesystem paths are exposed.
+    """
+    repo_datasets = dataset_manager.list_datasets(db, limit=limit, offset=offset)
+    total = len(repo_datasets)  # TODO: use count if pagination needed
+
+    # Recount properly
+    from src.repositories.dataset_repository import DatasetRepository
+    ds_repo = DatasetRepository(db)
+    total = ds_repo.count_datasets()
+
+    items = [_ds_to_response(ds) for ds in repo_datasets]
+
+    return DatasetListResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        items=items,
+    )
+
+
+@router.get("/datasets/{dataset_id}", response_model=DatasetMetadataResponse)
+async def get_dataset(
+    dataset_id: str,
+    db: Session = Depends(get_db),
+) -> DatasetMetadataResponse:
+    """Get metadata for a specific dataset.
+
+    Returns dataset metadata only — no raw transaction contents or
+    server filesystem paths are exposed.
+    """
+    ds = dataset_manager.get_dataset(db, dataset_id)
+    if ds is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset '{dataset_id}' not found",
+        )
+    return _ds_to_response(ds)

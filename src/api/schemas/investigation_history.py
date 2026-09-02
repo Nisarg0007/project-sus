@@ -33,6 +33,9 @@ class InvestigationListItem(BaseModel):
     baseline_windows: int = Field(..., description="Windows classified as baseline")
     spike_rate: float = Field(..., description="Fraction of windows flagged as spikes")
     processing_note: str = Field("", description="Any pipeline notes")
+    dataset_id: Optional[str] = Field(None, description="Source dataset identifier")
+    dataset_filename: Optional[str] = Field(None, description="Original dataset filename")
+    data_source_type: Optional[str] = Field(None, description="Type of data source (csv, default, etc.)")
 
 
 class InvestigationListResponse(BaseModel):
@@ -95,6 +98,11 @@ class InvestigationDetailResponse(BaseModel):
     investigation_id: str = Field(..., description="Unique investigation identifier")
     status: str = Field(..., description="Run status")
     created_at: datetime = Field(..., description="When the investigation was run")
+
+    # Dataset traceability
+    dataset_id: Optional[str] = Field(None, description="Source dataset identifier")
+    dataset_filename: Optional[str] = Field(None, description="Original dataset filename")
+    data_source_type: Optional[str] = Field(None, description="Type of data source")
 
     # Input parameters
     transactions_path: str = Field(..., description="Path to transactions CSV")

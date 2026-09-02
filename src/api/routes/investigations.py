@@ -71,18 +71,24 @@ async def run_investigation(
     dataset_id = request.dataset_id
 
     if dataset_id and not transactions_path:
-        # Resolve from dataset_id
-        from src.services.dataset_manager import dataset_manager
-
-        record = dataset_manager.get_dataset(dataset_id)
+        # Resolve from dataset_id via database
+        from src.services.dataset_manager import DatasetManager
+        _dm = DatasetManager()
+        record = _dm.get_dataset(db, dataset_id)
         if record is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"Dataset '{dataset_id}' not found",
             )
-        transactions_path = record.transactions_path
-        window_labels_path = record.window_labels_path or window_labels_path
-        data_source_name = record.source_name
+        resolved_path = _dm.resolve_file_path(record)
+        if resolved_path is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Dataset file not found on disk for '{dataset_id}'",
+            )
+        transactions_path = resolved_path
+        window_labels_path = window_labels_path  # keep provided or will default below
+        data_source_name = f"upload:{record.original_filename}"
 
     # Fall back to defaults if nothing specified
     if not transactions_path:

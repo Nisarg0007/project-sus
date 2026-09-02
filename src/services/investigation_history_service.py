@@ -27,6 +27,7 @@ from src.api.schemas.investigation_history import (
     InvestigationSummary,
     PersistedIncidentResponse,
 )
+from src.repositories.dataset_repository import DatasetRepository
 from src.repositories.investigation_repository import InvestigationRepository
 
 logger = logging.getLogger(__name__)
@@ -87,8 +88,19 @@ class InvestigationHistoryService:
         total = repo.count_investigations(**filter_kwargs)
         runs = repo.list_investigations(limit=limit, offset=offset, **filter_kwargs, **sort_kwargs)
 
-        items = [
-            InvestigationListItem(
+        # Pre-fetch dataset metadata for all unique dataset_ids
+        dataset_cache: dict[str, "Dataset"] = {}
+        ds_repo = DatasetRepository(db)
+        unique_ds_ids = {run.dataset_id for run in runs if run.dataset_id}
+        for ds_id in unique_ds_ids:
+            ds = ds_repo.get_by_dataset_id(ds_id)
+            if ds:
+                dataset_cache[ds_id] = ds
+
+        items = []
+        for run in runs:
+            ds_meta = dataset_cache.get(run.dataset_id) if run.dataset_id else None
+            items.append(InvestigationListItem(
                 investigation_id=run.investigation_id,
                 status=run.status,
                 created_at=run.created_at,
@@ -100,9 +112,10 @@ class InvestigationHistoryService:
                 baseline_windows=run.baseline_windows,
                 spike_rate=run.spike_rate,
                 processing_note=run.processing_note,
-            )
-            for run in runs
-        ]
+                dataset_id=run.dataset_id,
+                dataset_filename=ds_meta.original_filename if ds_meta else None,
+                data_source_type=ds_meta.data_source_type if ds_meta else ("default" if not run.dataset_id else None),
+            ))
 
         return InvestigationListResponse(
             total=total,
@@ -146,10 +159,19 @@ class InvestigationHistoryService:
             self._convert_incident(inc) for inc in run.incidents
         ]
 
+        # Resolve dataset metadata
+        ds_meta = None
+        if run.dataset_id:
+            ds_repo = DatasetRepository(db)
+            ds_meta = ds_repo.get_by_dataset_id(run.dataset_id)
+
         return InvestigationDetailResponse(
             investigation_id=run.investigation_id,
             status=run.status,
             created_at=run.created_at,
+            dataset_id=run.dataset_id,
+            dataset_filename=ds_meta.original_filename if ds_meta else None,
+            data_source_type=ds_meta.data_source_type if ds_meta else ("default" if not run.dataset_id else None),
             transactions_path=run.transactions_path,
             window_labels_path=run.window_labels_path,
             model_path=run.model_path,

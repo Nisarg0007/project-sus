@@ -63,6 +63,7 @@ class InvestigationRepository:
         baseline_windows: int,
         spike_rate: float,
         processing_note: str = "",
+        dataset_id: Optional[str] = None,
     ) -> InvestigationRun:
         """Persist a new InvestigationRun.
 
@@ -72,6 +73,7 @@ class InvestigationRepository:
         run = InvestigationRun(
             investigation_id=investigation_id,
             status=status,
+            dataset_id=dataset_id,
             transactions_path=transactions_path,
             window_labels_path=window_labels_path,
             model_path=model_path,
