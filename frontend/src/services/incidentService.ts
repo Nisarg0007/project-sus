@@ -12,6 +12,7 @@ import {
   getPersistedIncidents,
   type IncidentUpdatePayload,
   type BackendIncidentDetail,
+  type BackendPersistedIncidentListItem,
   type IncidentFilters,
 } from '../api/incidentList';
 import { mapIncidentListItem, mapToFullIncident } from '../api/mappers/incidentMapper';
@@ -78,6 +79,9 @@ export interface IncidentDetail {
   assignedAnalyst: string | null;
   analystNotes: string | null;
   resolution: string | null;
+  investigationId: string | null;
+  datasetFilename: string | null;
+  dataSourceType: string | null;
   createdAt: string;
   updatedAt: string;
   statusHistory: Array<{
@@ -101,6 +105,7 @@ export interface IncidentListItem {
   confidenceBand: string;
   assignedAnalyst: string | null;
   resolution: string | null;
+  anomalySummary: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -125,6 +130,9 @@ function mapIncidentDetail(b: BackendIncidentDetail): IncidentDetail {
     assignedAnalyst: b.assigned_analyst,
     analystNotes: b.analyst_notes,
     resolution: b.resolution,
+    investigationId: b.investigation_id,
+    datasetFilename: b.dataset_filename,
+    dataSourceType: b.data_source_type,
     createdAt: b.created_at,
     updatedAt: b.updated_at,
     statusHistory: (b.status_history ?? []).map(h => ({
@@ -184,6 +192,7 @@ export async function fetchPersistedIncidents(
     confidenceBand: inc.confidence_band,
     assignedAnalyst: inc.assigned_analyst,
     resolution: inc.resolution,
+    anomalySummary: (inc as BackendPersistedIncidentListItem & { anomaly_summary?: string }).anomaly_summary ?? '',
     createdAt: inc.created_at,
     updatedAt: inc.updated_at,
   }));

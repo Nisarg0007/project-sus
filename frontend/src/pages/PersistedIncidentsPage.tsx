@@ -244,7 +244,7 @@ export default function PersistedIncidentsPage() {
       {/* Header */}
       <div className="flex items-baseline gap-3 mb-6">
         <h1 className="text-[11px] font-mono tracking-[0.2em] uppercase text-[#8A94A6]">
-          Persisted Incidents
+          Incidents
         </h1>
         {hasActiveFilters && (
           <span className="text-[10px] font-mono text-[#38BDF8]/50">
@@ -409,7 +409,7 @@ export default function PersistedIncidentsPage() {
       {!loading && incidents.length === 0 && (
         <div className="text-center py-16">
           <p className="text-sm font-mono text-[#8A94A6]/60">
-            {hasActiveFilters ? 'No incidents match the current filters.' : 'No persisted incidents yet.'}
+            {hasActiveFilters ? 'No incidents match the current filters.' : 'No incidents yet. Run an investigation to generate incidents for review.'}
           </p>
           {hasActiveFilters && (
             <button
@@ -481,6 +481,11 @@ export default function PersistedIncidentsPage() {
                       <span className="text-[#A78BFA]/70">{inc.resolution}</span>
                     )}
                   </div>
+                  {inc.anomalySummary && (
+                    <p className="text-[9px] font-mono text-[#8A94A6]/40 mt-1 line-clamp-1">
+                      {inc.anomalySummary}
+                    </p>
+                  )}
                 </motion.button>
               );
             })}

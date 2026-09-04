@@ -263,11 +263,12 @@ export default function InvestigationDetailPage() {
             {detail.merchantFilter && (
               <ConfigRow label="Merchant Filter" value={detail.merchantFilter} />
             )}
-            {detail.modelPath && (
-              <ConfigRow label="Model Path" value={detail.modelPath} />
+            {detail.datasetFilename && (
+              <ConfigRow label="Dataset" value={detail.datasetFilename} />
             )}
-            <ConfigRow label="Transactions" value={detail.transactionsPath} mono />
-            <ConfigRow label="Window Labels" value={detail.windowLabelsPath} mono />
+            {detail.dataSourceType && (
+              <ConfigRow label="Source" value={detail.dataSourceType} />
+            )}
           </div>
         </div>
       </section>

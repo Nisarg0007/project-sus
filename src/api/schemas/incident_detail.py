@@ -80,6 +80,17 @@ class IncidentDetailResponse(BaseModel):
     created_at: datetime = Field(..., description="When the incident was persisted")
     updated_at: datetime = Field(..., description="When workflow metadata was last changed")
 
+    # Traceability
+    investigation_id: Optional[str] = Field(
+        None, description="Parent investigation identifier"
+    )
+    dataset_filename: Optional[str] = Field(
+        None, description="Source dataset filename"
+    )
+    data_source_type: Optional[str] = Field(
+        None, description="Type of data source"
+    )
+
     # Audit trail
     status_history: list[StatusHistoryEntry] = Field(
         default_factory=list, description="Workflow status transition history"
@@ -131,6 +142,7 @@ class PersistedIncidentListItem(BaseModel):
     confidence_band: str = Field(...)
     assigned_analyst: Optional[str] = Field(None)
     resolution: Optional[str] = Field(None)
+    anomaly_summary: str = Field("", description="Brief evidence summary")
     created_at: datetime = Field(...)
     updated_at: datetime = Field(...)
 

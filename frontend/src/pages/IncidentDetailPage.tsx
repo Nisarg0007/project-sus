@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, User, Save, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Clock, User, Save, AlertTriangle, CheckCircle, FileText, ExternalLink } from 'lucide-react';
 import { dataSource } from '../data/dataSource';
 import type { IncidentDetail } from '../services/incidentService';
 
@@ -35,6 +35,14 @@ const resolutionOptions = [
   { value: 'false_positive', label: 'False Positive' },
   { value: 'inconclusive', label: 'Inconclusive' },
 ];
+
+// Valid workflow transitions
+const validTransitions: Record<string, string[]> = {
+  open: ['investigating'],
+  investigating: ['resolved', 'false_positive', 'open'],
+  resolved: ['open'],
+  false_positive: ['open'],
+};
 
 // ---------------------------------------------------------------------------
 // Main Component
@@ -165,11 +173,11 @@ export default function IncidentDetailPage() {
         className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto py-16"
       >
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/incidents')}
           className="flex items-center gap-2 text-xs font-mono text-[#8A94A6] hover:text-[#38BDF8] mb-6 transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Back
+          INCIDENTS
         </button>
         <div className="border border-[#FF5C5C]/30 bg-[#FF5C5C]/5 p-6">
           <div className="flex items-center gap-3">
@@ -184,6 +192,7 @@ export default function IncidentDetailPage() {
   const statusColor = severityColors[incident.severity] ?? '#8A94A6';
   const classColor = classificationColors[incident.classification] ?? '#8A94A6';
   const currentWorkflow = workflowStatusOptions.find(o => o.value === workflowStatus);
+  const allowedTransitions = validTransitions[workflowStatus] ?? [];
 
   return (
     <motion.div
@@ -194,15 +203,15 @@ export default function IncidentDetailPage() {
     >
       {/* Back navigation */}
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate('/incidents')}
         className="flex items-center gap-2 text-xs font-mono text-[#8A94A6] hover:text-[#38BDF8] mb-6 transition-colors"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
-        Back
+        INCIDENTS
       </button>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex items-start justify-between mb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
             <span className="text-[11px] font-mono text-[#38BDF8] tracking-wider">
@@ -224,9 +233,6 @@ export default function IncidentDetailPage() {
           <div className="flex items-center gap-4 text-[10px] font-mono text-[#8A94A6]">
             <span>Merchant: {incident.merchantId}</span>
             <span>Date: {incident.date}</span>
-            {incident.predictedCause && (
-              <span>Predicted cause: {incident.predictedCause.replace('_', ' ')}</span>
-            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -246,57 +252,18 @@ export default function IncidentDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left column: ML Evidence (read-only) */}
+        {/* Left column: Evidence + Traceability */}
         <div className="lg:col-span-2 space-y-6">
-          {/* ML Evidence Section */}
+          {/* WHY THIS WAS FLAGGED */}
           <div className="border border-[#1E293B] bg-[#0B0F18]/80 p-5">
             <h3 className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#8A94A6] mb-4">
-              Model Evidence
+              Why This Was Flagged
             </h3>
-
-            {/* Scores grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-              <div>
-                <div className="text-[9px] font-mono text-[#8A94A6]/60 uppercase tracking-wider mb-1">
-                  Fraud Probability
-                </div>
-                <div className="text-lg font-mono text-[#F3F4F6]">
-                  {(incident.fraudProbability * 100).toFixed(1)}%
-                </div>
-              </div>
-              <div>
-                <div className="text-[9px] font-mono text-[#8A94A6]/60 uppercase tracking-wider mb-1">
-                  Confidence
-                </div>
-                <div className="text-lg font-mono text-[#F3F4F6]">
-                  {(incident.confidence * 100).toFixed(1)}%
-                </div>
-              </div>
-              <div>
-                <div className="text-[9px] font-mono text-[#8A94A6]/60 uppercase tracking-wider mb-1">
-                  Confidence Band
-                </div>
-                <div className="text-sm font-mono text-[#F3F4F6]">
-                  {incident.confidenceBand.replace('_', ' ')}
-                </div>
-              </div>
-              <div>
-                <div className="text-[9px] font-mono text-[#8A94A6]/60 uppercase tracking-wider mb-1">
-                  Anomaly Score
-                </div>
-                <div className="text-lg font-mono text-[#F3F4F6]">
-                  {incident.anomalyScore.toFixed(2)}
-                </div>
-              </div>
-            </div>
 
             {/* Decision reason */}
             {incident.decisionReason && (
               <div className="mb-4">
-                <div className="text-[9px] font-mono text-[#8A94A6]/60 uppercase tracking-wider mb-1">
-                  Decision Reason
-                </div>
-                <p className="text-xs font-mono text-[#8A94A6] leading-relaxed">
+                <p className="text-xs font-mono text-[#F3F4F6] leading-relaxed">
                   {incident.decisionReason}
                 </p>
               </div>
@@ -305,20 +272,17 @@ export default function IncidentDetailPage() {
             {/* Anomaly summary */}
             {incident.anomalySummary && (
               <div className="mb-4">
-                <div className="text-[9px] font-mono text-[#8A94A6]/60 uppercase tracking-wider mb-1">
-                  Anomaly Summary
-                </div>
                 <p className="text-xs font-mono text-[#8A94A6] leading-relaxed">
                   {incident.anomalySummary}
                 </p>
               </div>
             )}
 
-            {/* Top signals */}
+            {/* Top Signals — now surfaced prominently */}
             {incident.topSignals.length > 0 && (
               <div className="mb-4">
                 <div className="text-[9px] font-mono text-[#8A94A6]/60 uppercase tracking-wider mb-2">
-                  Top Signals
+                  Key Evidence
                 </div>
                 <div className="space-y-1.5">
                   {incident.topSignals.map((signal, i) => (
@@ -346,14 +310,107 @@ export default function IncidentDetailPage() {
               </div>
             )}
           </div>
+
+          {/* ML Evidence (secondary, technical) */}
+          <details className="border border-[#1E293B] bg-[#0B0F18]/80">
+            <summary className="px-5 py-3 text-[10px] font-mono tracking-[0.2em] uppercase text-[#8A94A6] cursor-pointer hover:text-[#F3F4F6] transition-colors">
+              Model Evidence (Technical)
+            </summary>
+            <div className="px-5 pb-5 border-t border-[#1E293B]/40">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 mb-5">
+                <div>
+                  <div className="text-[9px] font-mono text-[#8A94A6]/60 uppercase tracking-wider mb-1">
+                    Fraud Probability
+                  </div>
+                  <div className="text-lg font-mono text-[#F3F4F6]">
+                    {(incident.fraudProbability * 100).toFixed(1)}%
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[9px] font-mono text-[#8A94A6]/60 uppercase tracking-wider mb-1">
+                    Confidence
+                  </div>
+                  <div className="text-lg font-mono text-[#F3F4F6]">
+                    {(incident.confidence * 100).toFixed(1)}%
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[9px] font-mono text-[#8A94A6]/60 uppercase tracking-wider mb-1">
+                    Confidence Band
+                  </div>
+                  <div className="text-sm font-mono text-[#F3F4F6]">
+                    {incident.confidenceBand.replace('_', ' ')}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[9px] font-mono text-[#8A94A6]/60 uppercase tracking-wider mb-1">
+                    Anomaly Score
+                  </div>
+                  <div className="text-lg font-mono text-[#F3F4F6]">
+                    {incident.anomalyScore.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              {incident.predictedCause && (
+                <div className="text-[10px] font-mono text-[#8A94A6]">
+                  Predicted cause: {incident.predictedCause.replace('_', ' ')}
+                </div>
+              )}
+            </div>
+          </details>
+
+          {/* Traceability */}
+          <div className="border border-[#1E293B] bg-[#0B0F18]/80 p-5">
+            <h3 className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#8A94A6] mb-3">
+              Source
+            </h3>
+            <div className="space-y-2 text-[10px] font-mono">
+              {incident.investigationId && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[#8A94A6]/60">Investigation</span>
+                  <button
+                    onClick={() => navigate(`/investigations/${incident.investigationId}`)}
+                    className="text-[#38BDF8] hover:underline flex items-center gap-1"
+                  >
+                    {incident.investigationId}
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              )}
+              {incident.datasetFilename && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[#8A94A6]/60">Dataset</span>
+                  <span className="text-[#F3F4F6] flex items-center gap-1">
+                    <FileText className="w-2.5 h-2.5 text-[#8A94A6]/40" />
+                    {incident.datasetFilename}
+                  </span>
+                </div>
+              )}
+              {incident.dataSourceType && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[#8A94A6]/60">Source Type</span>
+                  <span className="text-[#F3F4F6]">{incident.dataSourceType}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-[#8A94A6]/60">Created</span>
+                <span className="text-[#8A94A6]">{new Date(incident.createdAt).toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#8A94A6]/60">Last Updated</span>
+                <span className="text-[#8A94A6]">{new Date(incident.updatedAt).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Right column: Analyst Workflow (editable) */}
+        {/* Right column: Analyst Decision */}
         <div className="space-y-6">
-          {/* Workflow Panel */}
+          {/* Analyst Decision Panel */}
           <div className="border border-[#1E293B] bg-[#0B0F18]/80 p-5">
             <h3 className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#8A94A6] mb-4">
-              Analyst Workflow
+              Analyst Decision
             </h3>
 
             {/* Status */}
@@ -372,6 +429,11 @@ export default function IncidentDetailPage() {
                   </option>
                 ))}
               </select>
+              {allowedTransitions.length > 0 && (
+                <p className="text-[9px] font-mono text-[#8A94A6]/40 mt-1">
+                  Can transition to: {allowedTransitions.map(t => t.replace('_', ' ').toUpperCase()).join(', ')}
+                </p>
+              )}
             </div>
 
             {/* Assigned Analyst */}
@@ -427,17 +489,17 @@ export default function IncidentDetailPage() {
             <button
               onClick={handleSave}
               disabled={!hasChanges || saving}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-[10px] font-mono tracking-wider uppercase bg-[#0F1623] border border-[#1E293B] text-[#8A94A6] hover:text-[#38BDF8] hover:border-[#38BDF8]/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-[10px] font-mono tracking-wider uppercase bg-[#38BDF8] text-[#0B0F18] hover:bg-[#60CCFA] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {saving ? (
                 <>
-                  <div className="w-3 h-3 border-2 border-[#38BDF8]/30 border-t-[#38BDF8] rounded-full animate-spin" />
+                  <div className="w-3 h-3 border-2 border-[#0B0F18]/30 border-t-[#0B0F18] rounded-full animate-spin" />
                   Saving...
                 </>
               ) : (
                 <>
                   <Save className="w-3.5 h-3.5" />
-                  Save Changes
+                  Save Decision
                 </>
               )}
             </button>
@@ -446,7 +508,7 @@ export default function IncidentDetailPage() {
             {saveSuccess && (
               <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-[#34D399]">
                 <CheckCircle className="w-3.5 h-3.5" />
-                Changes saved successfully
+                Decision saved
               </div>
             )}
             {saveError && (
@@ -460,12 +522,12 @@ export default function IncidentDetailPage() {
           {/* Status History Timeline */}
           <div className="border border-[#1E293B] bg-[#0B0F18]/80 p-5">
             <h3 className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#8A94A6] mb-4">
-              Status History
+              Decision History
             </h3>
 
             {incident.statusHistory.length === 0 ? (
               <div className="text-[10px] font-mono text-[#8A94A6]/50">
-                No status transitions recorded.
+                No decisions recorded yet.
               </div>
             ) : (
               <div className="space-y-3">
@@ -516,23 +578,6 @@ export default function IncidentDetailPage() {
                 })}
               </div>
             )}
-          </div>
-
-          {/* Metadata */}
-          <div className="border border-[#1E293B] bg-[#0B0F18]/80 p-5">
-            <h3 className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#8A94A6] mb-3">
-              Metadata
-            </h3>
-            <div className="space-y-2 text-[10px] font-mono">
-              <div className="flex justify-between">
-                <span className="text-[#8A94A6]/60">Created</span>
-                <span className="text-[#8A94A6]">{new Date(incident.createdAt).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#8A94A6]/60">Last Updated</span>
-                <span className="text-[#8A94A6]">{new Date(incident.updatedAt).toLocaleString()}</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>

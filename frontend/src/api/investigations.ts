@@ -63,6 +63,9 @@ export interface BackendInvestigationListItem {
   baseline_windows: number;
   spike_rate: number;
   processing_note: string;
+  dataset_id: string | null;
+  dataset_filename: string | null;
+  data_source_type: string | null;
 }
 
 export interface BackendInvestigationListResponse {
@@ -106,6 +109,9 @@ export interface BackendInvestigationDetail {
   investigation_id: string;
   status: string;
   created_at: string;
+  dataset_id: string | null;
+  dataset_filename: string | null;
+  data_source_type: string | null;
   transactions_path: string;
   window_labels_path: string;
   model_path: string | null;

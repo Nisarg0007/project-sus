@@ -160,7 +160,7 @@ async def get_incident_detail(
             status_code=404,
             detail=f"Incident '{incident_id}' not found",
         )
-    return _orm_to_detail(incident)
+    return _orm_to_detail(incident, db)
 
 
 @router.patch(
@@ -216,7 +216,7 @@ async def update_incident(
 
     # Reload with history to return full detail
     reloaded = service.get_incident_detail(incident_id)
-    return _orm_to_detail(reloaded or incident)
+    return _orm_to_detail(reloaded or incident, db)
 
 
 @router.get(
@@ -254,7 +254,7 @@ async def get_incident_history(
 # ---------------------------------------------------------------------------
 
 
-def _orm_to_detail(incident) -> IncidentDetailResponse:
+def _orm_to_detail(incident, db: Session = None) -> IncidentDetailResponse:
     """Convert a PersistedIncident ORM object to a detail response."""
     try:
         top_signals = json.loads(incident.top_signals_json)
@@ -273,6 +273,20 @@ def _orm_to_detail(incident) -> IncidentDetailResponse:
             )
             for h in incident.status_history
         ]
+
+    # Resolve traceability from parent investigation run
+    investigation_id_val = None
+    dataset_filename_val = None
+    data_source_type_val = None
+    if incident.investigation_run:
+        investigation_id_val = incident.investigation_run.investigation_id
+        if incident.investigation_run.dataset_id and db is not None:
+            from src.repositories.dataset_repository import DatasetRepository
+            ds_repo = DatasetRepository(db)
+            ds = ds_repo.get_by_dataset_id(incident.investigation_run.dataset_id)
+            if ds:
+                dataset_filename_val = ds.original_filename
+                data_source_type_val = ds.data_source_type
 
     return IncidentDetailResponse(
         incident_id=incident.incident_id,
@@ -295,6 +309,9 @@ def _orm_to_detail(incident) -> IncidentDetailResponse:
         resolution=incident.resolution,
         created_at=incident.created_at,
         updated_at=incident.updated_at,
+        investigation_id=investigation_id_val,
+        dataset_filename=dataset_filename_val,
+        data_source_type=data_source_type_val,
         status_history=history,
     )
 
@@ -313,6 +330,7 @@ def _orm_to_list_item(incident) -> PersistedIncidentListItem:
         confidence_band=incident.confidence_band,
         assigned_analyst=incident.assigned_analyst,
         resolution=incident.resolution,
+        anomaly_summary=incident.anomaly_summary or "",
         created_at=incident.created_at,
         updated_at=incident.updated_at,
     )

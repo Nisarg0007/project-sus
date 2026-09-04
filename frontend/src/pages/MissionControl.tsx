@@ -2,19 +2,16 @@
  * Investigate Page
  *
  * Primary workspace for fraud/risk analysts.
- * Flow: Choose data → Configure → Run → See results → Act on incidents.
+ * Flow: Upload transaction data → Configure detection → Run investigation → See results → Act on incidents.
  */
 
-import { useMemo, useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { investigationAnomalies, getMerchant001Timeline } from '../data/mockData';
 import { useInvestigation } from '../context/InvestigationContext';
 import { dataSource } from '../data/dataSource';
 import type { InvestigationHistoryItem } from '../api/mappers/investigationHistoryMapper';
 import { RunInvestigationPanel } from '../components/mission/RunInvestigationPanel';
-import { ActivityVisualization } from '../components/mission/ActivityVisualization';
-import { ProductHero } from '../components/mission/ProductHero';
 import { AlertTriangle, TrendingUp, Eye, ChevronRight, Clock } from 'lucide-react';
 
 export default function MissionControl() {
@@ -22,8 +19,6 @@ export default function MissionControl() {
   const { result } = useInvestigation();
   const [historyItems, setHistoryItems] = useState<InvestigationHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-
-  const timelineData = useMemo(() => getMerchant001Timeline(), []);
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -44,18 +39,21 @@ export default function MissionControl() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.4 }}
     >
-      {/* Hero */}
-      <ProductHero />
-
-      {/* Activity Visualization — compact */}
-      <div className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto py-4">
-        <ActivityVisualization
-          data={timelineData}
-          selectedAnomalyId={investigationAnomalies[0]?.id ?? ''}
-          onAnomalyClick={() => {}}
-        />
+      {/* Page header — clear analyst purpose */}
+      <div className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto pt-8 pb-4">
+        <div className="flex items-center gap-3 mb-1">
+          <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#8A94A6]">
+            INVESTIGATE
+          </span>
+        </div>
+        <h1 className="text-2xl font-medium text-[#F3F4F6] tracking-tight mb-2">
+          Transaction Analysis
+        </h1>
+        <p className="text-sm text-[#8A94A6] max-w-xl">
+          Upload transaction data or use the default dataset to detect unusual activity, classify anomalies, and generate incidents for review.
+        </p>
       </div>
 
       {/* Divider */}
@@ -66,16 +64,8 @@ export default function MissionControl() {
       {/* Main content: Two columns */}
       <div className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto py-6">
         <div className="flex gap-8">
-          {/* Left: Investigation Panel */}
+          {/* Left: Investigation Panel (primary) */}
           <div className="flex-1 min-w-0">
-            <div className="mb-3">
-              <h2 className="text-[11px] font-mono tracking-[0.2em] uppercase text-[#8A94A6]">
-                New Investigation
-              </h2>
-              <p className="text-[10px] font-mono text-[#8A94A6]/50 mt-1">
-                Upload transaction data or use the default dataset to identify unusual activity.
-              </p>
-            </div>
             <RunInvestigationPanel />
           </div>
 

@@ -76,6 +76,9 @@ export interface BackendIncidentDetail {
   assigned_analyst: string | null;
   analyst_notes: string | null;
   resolution: string | null;
+  investigation_id: string | null;
+  dataset_filename: string | null;
+  data_source_type: string | null;
   created_at: string;
   updated_at: string;
   status_history: BackendStatusHistoryEntry[];
@@ -93,6 +96,7 @@ export interface BackendPersistedIncidentListItem {
   confidence_band: string;
   assigned_analyst: string | null;
   resolution: string | null;
+  anomaly_summary: string;
   created_at: string;
   updated_at: string;
 }

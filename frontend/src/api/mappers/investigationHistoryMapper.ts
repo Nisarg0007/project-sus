@@ -35,6 +35,8 @@ export interface InvestigationHistoryItem {
   baselineWindows: number;
   spikeRate: number;
   processingNote: string;
+  datasetFilename: string | null;
+  dataSourceType: string | null;
 }
 
 export interface InvestigationHistoryList {
@@ -49,6 +51,9 @@ export interface InvestigationHistoryDetail {
   status: string;
   createdAt: string;
   createdAtFormatted: string;
+  datasetId: string | null;
+  datasetFilename: string | null;
+  dataSourceType: string | null;
   transactionsPath: string;
   windowLabelsPath: string;
   modelPath: string | null;
@@ -111,6 +116,8 @@ export function mapInvestigationListItem(
     baselineWindows: backend.baseline_windows,
     spikeRate: backend.spike_rate,
     processingNote: backend.processing_note,
+    datasetFilename: backend.dataset_filename ?? null,
+    dataSourceType: backend.data_source_type ?? null,
   };
 }
 
@@ -185,6 +192,9 @@ export function mapInvestigationDetail(
     status: backend.status,
     createdAt: backend.created_at,
     createdAtFormatted: formatDateShort(backend.created_at),
+    datasetId: backend.dataset_id ?? null,
+    datasetFilename: backend.dataset_filename ?? null,
+    dataSourceType: backend.data_source_type ?? null,
     transactionsPath: backend.transactions_path,
     windowLabelsPath: backend.window_labels_path,
     modelPath: backend.model_path,
