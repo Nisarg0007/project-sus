@@ -42,17 +42,12 @@ export default function MissionControl() {
       transition={{ duration: 0.4 }}
     >
       {/* Page header — clear analyst purpose */}
-      <div className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto pt-8 pb-4">
-        <div className="flex items-center gap-3 mb-1">
-          <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#8A94A6]">
-            INVESTIGATE
-          </span>
-        </div>
+      <div className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto pt-8 pb-2">
         <h1 className="text-2xl font-medium text-[#F3F4F6] tracking-tight mb-2">
-          Transaction Analysis
+          Investigate Transaction Activity
         </h1>
         <p className="text-sm text-[#8A94A6] max-w-xl">
-          Upload transaction data or use the default dataset to detect unusual activity, classify anomalies, and generate incidents for review.
+          Upload transaction data or use the default dataset to detect unusual activity, classify anomalies, and generate incidents for analyst review.
         </p>
       </div>
 

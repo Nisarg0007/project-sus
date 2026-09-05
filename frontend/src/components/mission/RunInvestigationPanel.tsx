@@ -296,7 +296,7 @@ export function RunInvestigationPanel() {
       <Step
         number={3}
         label="RUN"
-        status={isRunning ? 'running' : 'available'}
+        status={isRunning ? 'running' : (result ? 'complete' : 'available')}
       >
         <div className="flex items-center gap-4">
           <button

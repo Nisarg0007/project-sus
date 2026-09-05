@@ -408,15 +408,30 @@ export default function PersistedIncidentsPage() {
       {/* Empty state */}
       {!loading && incidents.length === 0 && (
         <div className="text-center py-16">
-          <p className="text-sm font-mono text-[#8A94A6]/60">
-            {hasActiveFilters ? 'No incidents match the current filters.' : 'No incidents yet. Run an investigation to generate incidents for review.'}
+          <div className="w-12 h-12 rounded-full bg-[#1E293B]/60 flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-5 h-5 text-[#8A94A6]/40" />
+          </div>
+          <p className="text-sm font-mono text-[#8A94A6] mb-1">
+            {hasActiveFilters ? 'No incidents match the current filters.' : 'No incidents yet.'}
           </p>
-          {hasActiveFilters && (
+          <p className="text-[10px] font-mono text-[#8A94A6]/50">
+            {hasActiveFilters
+              ? 'Try adjusting your search criteria or clear all filters.'
+              : 'Run an investigation to generate incidents for analyst review.'}
+          </p>
+          {hasActiveFilters ? (
             <button
               onClick={clearFilters}
-              className="mt-3 text-[10px] font-mono text-[#38BDF8] hover:underline"
+              className="mt-4 px-4 py-2 text-[10px] font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 border border-[#38BDF8]/20 transition-all"
             >
-              Clear filters
+              CLEAR FILTERS
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/')}
+              className="mt-4 px-4 py-2 text-[10px] font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 border border-[#38BDF8]/20 transition-all"
+            >
+              GO TO INVESTIGATE
             </button>
           )}
         </div>

@@ -189,7 +189,7 @@ export default function InvestigationDetailPage() {
       className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto pt-8 pb-24"
     >
       {/* Back navigation */}
-      <BackButton onClick={() => navigate('/')} />
+      <BackButton onClick={() => navigate('/investigations')} />
 
       {/* Investigation header */}
       <div className="mt-8 mb-8">
@@ -317,7 +317,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
       className="flex items-center gap-2 text-[11px] font-mono text-[#8A94A6] hover:text-[#38BDF8] transition-colors duration-200"
     >
       <ArrowLeft className="w-3.5 h-3.5" />
-      INVESTIGATIONS
+      HISTORY
     </button>
   );
 }
