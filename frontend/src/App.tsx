@@ -4,9 +4,7 @@ import { InvestigationProvider } from './context/InvestigationContext';
 import { Layout } from './components/layout/Layout';
 import { CommandPalette } from './components/shared/CommandPalette';
 import MissionControl from './pages/MissionControl';
-import Activity from './pages/Activity';
-import MockIncidents from './pages/Incidents';
-import Merchants from './pages/Merchants';
+
 import InvestigationDetailPage from './pages/InvestigationDetailPage';
 import InvestigationHistoryPage from './pages/InvestigationHistoryPage';
 import ComparisonPage from './pages/ComparisonPage';
@@ -51,10 +49,7 @@ function AppContent() {
           <Route path="/investigations/compare" element={<ComparisonPage />} />
           <Route path="/investigations/:investigationId" element={<InvestigationDetailPage />} />
           <Route path="/analytics" element={<InvestigationAnalyticsPage />} />
-          {/* Preserved secondary routes — accessible via command palette or direct URL */}
-          <Route path="/activity" element={<Activity />} />
-          <Route path="/merchants" element={<Merchants />} />
-          <Route path="/incidents/mock" element={<MockIncidents />} />
+          {/* Legacy routes preserved for bookmark compatibility */}
           <Route path="/incidents/persisted" element={<PersistedIncidentsPage />} />
         </Routes>
       </Layout>

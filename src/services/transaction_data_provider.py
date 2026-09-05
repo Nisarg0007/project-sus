@@ -271,9 +271,24 @@ class CSVTransactionDataProvider(TransactionDataProvider):
             if blank_merchants > 0:
                 errors.append(f"{blank_merchants} rows have empty 'merchant_id'")
 
-        # Full row count (read only the first column for speed)
+        # Full row count AND date range scan (single pass over the file)
+        # The preview only has nrows=1000, which is insufficient for date
+        # range computation on large datasets.
+        total_rows = 0
+        min_date_str: str | None = None
+        max_date_str: str | None = None
         try:
-            total_rows = sum(1 for _ in open(self.transactions_path)) - 1  # minus header
+            import csv as _csv
+            with open(self.transactions_path, newline="") as fh:
+                reader = _csv.DictReader(fh)
+                for row in reader:
+                    total_rows += 1
+                    d = row.get("date", "").strip()
+                    if d:
+                        if min_date_str is None or d < min_date_str:
+                            min_date_str = d
+                        if max_date_str is None or d > max_date_str:
+                            max_date_str = d
         except Exception:
             total_rows = len(preview)
 
@@ -281,12 +296,8 @@ class CSVTransactionDataProvider(TransactionDataProvider):
         if "merchant_id" in present_cols:
             metadata["unique_merchants"] = int(preview["merchant_id"].nunique())
         if "date" in present_cols:
-            try:
-                dates = pd.to_datetime(preview["date"], errors="coerce").dropna()
-                metadata["date_range_start"] = dates.min().isoformat() if len(dates) > 0 else None
-                metadata["date_range_end"] = dates.max().isoformat() if len(dates) > 0 else None
-            except Exception:
-                pass
+            metadata["date_range_start"] = min_date_str
+            metadata["date_range_end"] = max_date_str
         if "amount" in present_cols:
             amounts = pd.to_numeric(preview["amount"], errors="coerce").dropna()
             metadata["amount_min"] = float(amounts.min()) if len(amounts) > 0 else None

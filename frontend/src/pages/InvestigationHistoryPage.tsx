@@ -11,10 +11,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Clock, Search, X, ArrowUp, ArrowDown, GitCompare } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, ChevronLeft, ChevronRight, FileText, Clock, Search, X, ArrowUp, ArrowDown, GitCompare } from 'lucide-react';
 import { dataSource } from '../data/dataSource';
 import type { InvestigationHistoryItem } from '../api/mappers/investigationHistoryMapper';
 import type { InvestigationHistoryFilters } from '../api/investigations';
+import { formatDateTime } from '../utils/dateFormat';
 
 const PAGE_SIZE = 10;
 
@@ -108,6 +109,7 @@ export default function InvestigationHistoryPage() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
 
@@ -153,9 +155,10 @@ export default function InvestigationHistoryPage() {
         setItems(result.items);
         setTotal(result.total);
         setOffset(result.offset);
-      } catch {
+      } catch (err) {
         setItems([]);
         setTotal(0);
+        setError(err instanceof Error ? err.message : 'Failed to load investigation history');
       } finally {
         setLoading(false);
       }
@@ -329,7 +332,7 @@ export default function InvestigationHistoryPage() {
               type="text"
               value={editFilters.merchantFilter}
               onChange={(e) => handleFilterChange('merchantFilter', e.target.value)}
-              placeholder="merchant_001"
+              placeholder="e.g. merchant_cloudserve"
               className="w-full px-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 placeholder:text-[#8A94A6]/30 focus:border-[#38BDF8]/40 focus:outline-none transition-colors"
             />
           </div>
@@ -491,6 +494,23 @@ export default function InvestigationHistoryPage() {
         </div>
       )}
 
+      {/* Error state */}
+      {!loading && error && (
+        <div className="flex flex-col items-center gap-4 py-20">
+          <div className="w-12 h-12 rounded-full bg-[#FF5C5C]/10 flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5 text-[#FF5C5C]" />
+          </div>
+          <h2 className="text-lg font-medium text-[#F3F4F6]">Unable to load investigations</h2>
+          <p className="text-sm text-[#8A94A6] max-w-md text-center">{error}</p>
+          <button
+            onClick={() => { setError(null); loadPage(urlPage, urlFilters, urlSort.sortBy, urlSort.sortOrder); }}
+            className="mt-2 px-4 py-2 text-xs font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 border border-[#38BDF8]/20 transition-colors"
+          >
+            RETRY
+          </button>
+        </div>
+      )}
+
       {/* Empty state — no data at all */}
       {!loading && items.length === 0 && !hasActiveFilters && (
         <div className="flex flex-col items-center gap-4 py-20">
@@ -632,20 +652,27 @@ function InvestigationRow({
         </div>
       )}
 
-      {/* Investigation ID */}
-      <span className="text-[11px] font-mono text-[#38BDF8] tracking-wider shrink-0 w-[160px] truncate">
-        {item.investigationId}
-      </span>
-
-      {/* Status badge */}
-      <span className="text-[9px] font-mono tracking-wider uppercase px-2 py-0.5 rounded-sm shrink-0 bg-[#38BDF8]/8 text-[#38BDF8]/80">
-        {item.status}
-      </span>
+      {/* Investigation info */}
+      <div className="flex-1 min-w-0 shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-mono text-[#38BDF8] tracking-wider truncate">
+            {item.investigationId}
+          </span>
+          <span className="text-[9px] font-mono tracking-wider uppercase px-1.5 py-0.5 rounded-sm bg-[#38BDF8]/8 text-[#38BDF8]/80">
+            {item.status}
+          </span>
+        </div>
+        {item.datasetFilename && (
+          <p className="text-[9px] font-mono text-[#8A94A6]/50 truncate mt-0.5">
+            {item.datasetFilename}
+          </p>
+        )}
+      </div>
 
       {/* Timestamp */}
       <span className="text-[10px] font-mono text-[#8A94A6] shrink-0 flex items-center gap-1.5">
         <Clock className="w-3 h-3 opacity-50" />
-        {item.createdAtFormatted}
+        {formatDateTime(item.createdAt)}
       </span>
 
       {/* Metrics */}

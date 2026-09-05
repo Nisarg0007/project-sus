@@ -127,31 +127,10 @@ export async function updateIncident(
   incidentId: string,
   payload: IncidentUpdatePayload,
 ): Promise<ApiResponse<BackendIncidentDetail>> {
-  const url = `/api/v1/incidents/${encodeURIComponent(incidentId)}`;
-  const response = await fetch(url, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    let detail: unknown;
-    try {
-      detail = await response.json();
-    } catch {
-      detail = await response.text();
-    }
-    return {
-      data: null as unknown as BackendIncidentDetail,
-      ok: false,
-      error: {
-        status: response.status,
-        message: `HTTP ${response.status}: ${response.statusText}`,
-        detail,
-      },
-    };
-  }
-  const data: BackendIncidentDetail = await response.json();
-  return { data, ok: true };
+  return apiClient.patch<BackendIncidentDetail>(
+    `/api/v1/incidents/${encodeURIComponent(incidentId)}`,
+    payload,
+  );
 }
 
 export async function getIncidentStatusHistory(

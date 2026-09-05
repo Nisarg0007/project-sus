@@ -88,8 +88,8 @@ export function RunInvestigationPanel() {
   const zValid = zThreshold.trim() !== '' && !isNaN(parsedZ) && parsedZ >= 0.01;
 
   const handleRun = useCallback(() => {
-    executeInvestigation(merchantFilter || undefined);
-  }, [merchantFilter, executeInvestigation]);
+    executeInvestigation(merchantFilter || undefined, parsedZ);
+  }, [merchantFilter, parsedZ, executeInvestigation]);
 
   return (
     <div className="space-y-0">
@@ -317,10 +317,17 @@ export function RunInvestigationPanel() {
             )}
           </button>
 
-          {result && (
-            <span className="text-[10px] font-mono text-[#34D399]">
-              {result.totalResults} windows · {result.fullIncidents.length} incidents
-            </span>
+          {result && !isRunning && (
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-mono text-[#34D399]">
+                {result.totalResults} windows · {result.fullIncidents.length} incidents
+              </span>
+              {result.investigationId && (
+                <span className="text-[9px] font-mono text-[#8A94A6]/40">
+                  {result.investigationId}
+                </span>
+              )}
+            </div>
           )}
           {error && (
             <span className="text-[10px] font-mono text-[#FF5C5C]">

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, User, Save, AlertTriangle, CheckCircle, FileText, ExternalLink } from 'lucide-react';
 import { dataSource } from '../data/dataSource';
+import { formatDateTime } from '../utils/dateFormat';
 import type { IncidentDetail } from '../services/incidentService';
 
 // ---------------------------------------------------------------------------
@@ -395,11 +396,11 @@ export default function IncidentDetailPage() {
               )}
               <div className="flex items-center justify-between">
                 <span className="text-[#8A94A6]/60">Created</span>
-                <span className="text-[#8A94A6]">{new Date(incident.createdAt).toLocaleString()}</span>
+                <span className="text-[#8A94A6]">{formatDateTime(incident.createdAt)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#8A94A6]/60">Last Updated</span>
-                <span className="text-[#8A94A6]">{new Date(incident.updatedAt).toLocaleString()}</span>
+                <span className="text-[#8A94A6]">{formatDateTime(incident.updatedAt)}</span>
               </div>
             </div>
           </div>
@@ -561,7 +562,7 @@ export default function IncidentDetailPage() {
                         </div>
                         <div className="flex items-center gap-2 text-[9px] font-mono text-[#8A94A6]/40">
                           <Clock className="w-2.5 h-2.5" />
-                          <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                          <span>{formatDateTime(entry.createdAt)}</span>
                           {entry.changedBy && (
                             <>
                               <User className="w-2.5 h-2.5" />

@@ -75,7 +75,7 @@ interface InvestigationContextValue extends InvestigationState, InvestigationExe
   setUploadError: (e: string | null) => void;
 
   // Investigation execution
-  executeInvestigation: (merchantFilter?: string) => Promise<void>;
+  executeInvestigation: (merchantFilter?: string, zThreshold?: number) => Promise<void>;
   clearInvestigationResult: () => void;
 
   // Reset
@@ -145,10 +145,15 @@ export function InvestigationProvider({ children }: { children: ReactNode }) {
 
   // --- Investigation execution ---
 
-  const executeInvestigation = useCallback(async (merchantFilter?: string) => {
+  const executeInvestigation = useCallback(async (merchantFilter?: string, zThreshold?: number) => {
     setExecState({ isLoading: true, error: null, result: null, hasRun: false });
 
     const request: Record<string, unknown> = merchantFilter ? { merchant_filter: merchantFilter } : {};
+
+    // Attach z_threshold if provided
+    if (zThreshold !== undefined && !isNaN(zThreshold)) {
+      request.z_threshold = zThreshold;
+    }
 
     // Attach dataset_id if in upload mode
     if (dsState.mode === 'upload' && dsState.datasetId) {

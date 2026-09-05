@@ -17,6 +17,7 @@ import type {
   InvestigationSummary,
   FullIncident,
 } from '../../types';
+import { formatDateTime, formatDateTimeShort, formatDate } from '../../utils/dateFormat';
 
 // ---------------------------------------------------------------------------
 // Frontend domain types for investigation history
@@ -27,6 +28,7 @@ export interface InvestigationHistoryItem {
   status: string;
   createdAt: string;
   createdAtFormatted: string;
+  createdAtShort: string;
   totalResults: number;
   spikesDetected: number;
   fraudIncidents: number;
@@ -64,25 +66,6 @@ export interface InvestigationHistoryDetail {
   incidents: FullIncident[];
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatDateShort(isoDate: string): string {
-  try {
-    const d = new Date(isoDate);
-    return d.toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return isoDate;
-  }
-}
-
 function deriveActionType(
   severity: string,
   classification: string,
@@ -107,7 +90,8 @@ export function mapInvestigationListItem(
     investigationId: backend.investigation_id,
     status: backend.status,
     createdAt: backend.created_at,
-    createdAtFormatted: formatDateShort(backend.created_at),
+    createdAtFormatted: formatDateTime(backend.created_at),
+    createdAtShort: formatDateTimeShort(backend.created_at),
     totalResults: backend.total_results,
     spikesDetected: backend.spikes_detected,
     fraudIncidents: backend.fraud_incidents,
@@ -145,7 +129,7 @@ function mapPersistedIncident(backend: BackendPersistedIncident): FullIncident {
     merchantId: backend.merchant_id,
     merchantName: backend.merchant_id,
     date: backend.date,
-    dateFormatted: formatDateShort(backend.date),
+    dateFormatted: formatDate(backend.date),
     severity: severity as FullIncident['severity'],
     status: (backend.status || 'open') as FullIncident['status'],
     predictedCause: classification as FullIncident['predictedCause'],
@@ -191,7 +175,7 @@ export function mapInvestigationDetail(
     investigationId: backend.investigation_id,
     status: backend.status,
     createdAt: backend.created_at,
-    createdAtFormatted: formatDateShort(backend.created_at),
+    createdAtFormatted: formatDateTime(backend.created_at),
     datasetId: backend.dataset_id ?? null,
     datasetFilename: backend.dataset_filename ?? null,
     dataSourceType: backend.data_source_type ?? null,

@@ -62,8 +62,8 @@ type DataSourceMode = 'mock' | 'api';
 
 function getMode(): DataSourceMode {
   const env = import.meta.env.VITE_DATA_SOURCE;
-  if (env === 'api') return 'api';
-  return 'mock';
+  if (env === 'mock') return 'mock';
+  return 'api';
 }
 
 // ---------------------------------------------------------------------------
@@ -220,7 +220,9 @@ export const dataSource = {
   ): Promise<InvestigationHistoryList> => {
     if (getMode() === 'api') {
       const result = await apiGetInvestigationHistory(limit, offset, filters);
-      return result.data ?? mockData.getInvestigationHistory(limit, offset, filters);
+      if (result.error) throw new Error(result.error.message || 'Failed to load investigation history');
+      if (result.data) return result.data;
+      throw new Error('Failed to load investigation history');
     }
     return mockData.getInvestigationHistory(limit, offset, filters);
   },
@@ -231,7 +233,8 @@ export const dataSource = {
   ): Promise<InvestigationHistoryDetail | null> => {
     if (getMode() === 'api') {
       const result = await apiGetInvestigationById(id);
-      return result.data ?? mockData.getInvestigationById(id);
+      if (result.error) throw new Error(result.error.message || 'Failed to load investigation');
+      return result.data ?? null;
     }
     return mockData.getInvestigationById(id);
   },
@@ -270,6 +273,8 @@ export const dataSource = {
   ): Promise<IncidentDetail | null> => {
     if (getMode() === 'api') {
       const result = await fetchIncidentDetail(incidentId);
+      if (result.error?.status === 404) return null;
+      if (result.error) throw new Error(result.error.message || 'Failed to load incident');
       return result.data;
     }
     return null;
@@ -292,6 +297,7 @@ export const dataSource = {
   getPersistedIncidents: async (filters?: IncidentFilters) => {
     if (getMode() === 'api') {
       const result = await fetchPersistedIncidents(filters);
+      if (result.error) throw new Error(result.error.message || 'Failed to load incidents');
       return result.data;
     }
     // Mock mode: return empty

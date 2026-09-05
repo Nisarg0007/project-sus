@@ -87,13 +87,16 @@ async def run_investigation(
                 detail=f"Dataset file not found on disk for '{dataset_id}'",
             )
         transactions_path = resolved_path
-        window_labels_path = window_labels_path  # keep provided or will default below
+        # Do NOT fall back to the default window_labels here — the uploaded
+        # dataset may have completely different merchants/dates than the
+        # built-in pipeline data.  Pass None and let the service generate
+        # window labels from the transactions if no explicit labels exist.
         data_source_name = f"upload:{record.original_filename}"
 
-    # Fall back to defaults if nothing specified
-    if not transactions_path:
+    # Fall back to defaults only when no dataset_id and no paths given
+    if not dataset_id and not transactions_path:
         transactions_path = settings.raw_data_dir + "/transactions.csv"
-    if not window_labels_path:
+    if not dataset_id and not window_labels_path:
         window_labels_path = settings.raw_data_dir + "/window_labels.csv"
 
     try:

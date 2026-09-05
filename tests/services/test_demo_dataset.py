@@ -214,6 +214,24 @@ class TestDemoProviderValidation:
         assert "date_range_start" in meta
         assert "date_range_end" in meta
 
+    def test_date_range_not_truncated_by_preview(self):
+        """Regression: validate() must report the FULL date range, not just
+        the first 1000 rows.  The demo CSV spans 2025-07-01 to 2025-08-24.
+        """
+        from src.services.transaction_data_provider import CSVTransactionDataProvider
+
+        provider = CSVTransactionDataProvider(
+            transactions_path=str(TXN_PATH),
+        )
+        result = provider.validate()
+        meta = result.metadata
+        assert meta["date_range_start"].startswith("2025-07-01"), (
+            f"Expected start 2025-07-01, got {meta['date_range_start']}"
+        )
+        assert meta["date_range_end"].startswith("2025-08-24"), (
+            f"Expected end 2025-08-24, got {meta['date_range_end']}"
+        )
+
     def test_provider_loads_data(self):
         from src.services.transaction_data_provider import CSVTransactionDataProvider
 
@@ -312,6 +330,28 @@ class TestDemoPipelineRun:
         r2 = run_pipeline(self.txns, self.wls)
 
         pd.testing.assert_frame_equal(r1, r2)
+
+    def test_api_upload_path_produces_incidents(self):
+        """Regression: uploading CSV via the API path must produce real
+        incidents.  Previously, the API defaulted to the original pipeline's
+        window labels, causing zero incidents for uploaded datasets.
+        """
+        from src.services.investigation_service import InvestigationService
+
+        svc = InvestigationService()
+        result = svc.run_investigation(
+            transactions_path=str(TXN_PATH),
+            window_labels_path=None,  # No labels — simulates uploaded dataset
+            z_threshold=0.5,
+            min_history_days=3,
+        )
+
+        assert result["total_results"] > 0, "No windows analyzed"
+        assert result["summary"].spikes_detected > 0, "No spikes detected"
+        assert len(result["incidents"]) > 0, "Zero incidents — demo would show nothing"
+        # Must produce a mix of incident types
+        fraud = sum(1 for i in result["incidents"] if i.classification.value == "fraud_spike")
+        assert fraud > 0, "No fraud incidents in demo upload path"
 
 
 # Required columns constant for provider test

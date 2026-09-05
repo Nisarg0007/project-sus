@@ -197,16 +197,33 @@ class InvestigationService:
             effective_source_name,
         )
 
-        # Load data — prefer dataset_id path if provided
-        logger.info("Loading data from %s", transactions_path)
+        # Load data
+        logger.info("Loading transactions from %s", transactions_path)
         try:
             transactions = pd.read_csv(transactions_path)
-            window_labels = pd.read_csv(window_labels_path)
         except FileNotFoundError as e:
             raise FileNotFoundError(
                 f"Data file not found: {e.filename}. "
                 "Ensure the pipeline data has been generated."
             ) from e
+
+        # Load or generate window labels
+        if window_labels_path:
+            logger.info("Loading window labels from %s", window_labels_path)
+            try:
+                window_labels = pd.read_csv(window_labels_path)
+            except FileNotFoundError:
+                # Window labels file missing — generate from transactions
+                logger.warning(
+                    "Window labels file not found at %s — generating from transactions",
+                    window_labels_path,
+                )
+                window_labels = self._generate_window_labels(transactions)
+        else:
+            # No window labels path provided (e.g. uploaded dataset without
+            # a companion labels file).  Generate from the transactions.
+            logger.info("No window labels provided — generating from transactions")
+            window_labels = self._generate_window_labels(transactions)
 
         logger.info(
             "Loaded %d transactions, %d window labels",
@@ -282,6 +299,22 @@ class InvestigationService:
             self._persist_results(db, result)
 
         return result
+
+    @staticmethod
+    def _generate_window_labels(transactions: pd.DataFrame) -> pd.DataFrame:
+        """Generate window labels from transaction data.
+
+        Creates one window per merchant per date with a synthetic label.
+        This is used when no explicit window labels file is provided
+        (e.g. uploaded CSV datasets without a companion labels file).
+        """
+        counts = (
+            transactions.groupby(["merchant_id", "date"])
+            .size()
+            .reset_index(name="transaction_count")
+        )
+        counts["window_label"] = "unknown"
+        return counts
 
     def _persist_results(self, db: Session, result: dict) -> None:
         """Persist investigation results to the database.

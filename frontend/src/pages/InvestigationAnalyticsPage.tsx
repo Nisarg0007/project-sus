@@ -18,6 +18,7 @@ import {
 import { ArrowLeft, TrendingUp, AlertTriangle, Search, X } from 'lucide-react';
 import { dataSource } from '../data/dataSource';
 import type { BackendAnalyticsResponse, BackendActivityDay } from '../api/investigations';
+import { formatDateTime } from '../utils/dateFormat';
 
 // ---------------------------------------------------------------------------
 // Color palette
@@ -134,19 +135,16 @@ export default function InvestigationAnalyticsPage() {
 
       {/* Page header */}
       <div className="mt-8 mb-2">
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-[#8A94A6]">
-            INVESTIGATION ANALYTICS
-          </span>
-          {analytics && (
-            <span className="text-[10px] font-mono text-[#38BDF8]/60">
-              {analytics.overview.total_investigations} investigations analyzed
+        <div className="flex items-baseline gap-3 mb-1">
+          <h1 className="text-2xl font-medium text-[#F3F4F6] tracking-tight">
+            Analytics
+          </h1>
+          {analytics && analytics.overview.total_investigations > 0 && (
+            <span className="text-[11px] font-mono text-[#8A94A6]/60">
+              {analytics.overview.total_investigations} investigations
             </span>
           )}
         </div>
-        <h1 className="text-2xl font-medium text-[#F3F4F6] tracking-tight mb-1">
-          Analytics Dashboard
-        </h1>
         <p className="text-sm text-[#8A94A6]">
           Aggregate insights across all persisted investigation runs.
         </p>
@@ -161,18 +159,18 @@ export default function InvestigationAnalyticsPage() {
           <div>
             <label className="block text-[9px] font-mono text-[#8A94A6] tracking-wider mb-1">FROM</label>
             <input
-              type="datetime-local"
-              value={editFrom}
-              onChange={(e) => setEditFrom(e.target.value)}
+              type="date"
+              value={editFrom ? editFrom.slice(0, 10) : ''}
+              onChange={(e) => setEditFrom(e.target.value ? `${e.target.value}T00:00:00` : '')}
               className="px-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 focus:border-[#38BDF8]/40 focus:outline-none transition-colors [color-scheme:dark]"
             />
           </div>
           <div>
             <label className="block text-[9px] font-mono text-[#8A94A6] tracking-wider mb-1">TO</label>
             <input
-              type="datetime-local"
-              value={editTo}
-              onChange={(e) => setEditTo(e.target.value)}
+              type="date"
+              value={editTo ? editTo.slice(0, 10) : ''}
+              onChange={(e) => setEditTo(e.target.value ? `${e.target.value}T23:59:59` : '')}
               className="px-3 py-1.5 text-[11px] font-mono text-[#F3F4F6] bg-[#0B0F18] border border-[#1a1f2e]/60 focus:border-[#38BDF8]/40 focus:outline-none transition-colors [color-scheme:dark]"
             />
           </div>
@@ -496,8 +494,7 @@ function RecentActivityList({
 
   function formatShort(iso: string): string {
     try {
-      const d = new Date(iso);
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      return formatDateTime(iso);
     } catch {
       return iso;
     }

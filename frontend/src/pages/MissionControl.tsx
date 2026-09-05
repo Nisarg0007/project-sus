@@ -5,7 +5,7 @@
  * Flow: Upload transaction data → Configure detection → Run investigation → See results → Act on incidents.
  */
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInvestigation } from '../context/InvestigationContext';
@@ -14,26 +14,41 @@ import type { InvestigationHistoryItem } from '../api/mappers/investigationHisto
 import { RunInvestigationPanel } from '../components/mission/RunInvestigationPanel';
 import { AlertTriangle, TrendingUp, Eye, ChevronRight, Clock } from 'lucide-react';
 
+
 export default function MissionControl() {
   const navigate = useNavigate();
   const { result } = useInvestigation();
   const [historyItems, setHistoryItems] = useState<InvestigationHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const lastResultId = useRef<string | null>(null);
 
-  const loadHistory = useCallback(async () => {
-    setHistoryLoading(true);
+  const loadHistory = useCallback(async (showLoading = true) => {
+    if (showLoading) setHistoryLoading(true);
+    setHistoryError(null);
     try {
-      const history = await dataSource.getInvestigationHistory(3, 0);
+      const history = await dataSource.getInvestigationHistory(5, 0);
       setHistoryItems(history.items);
-    } catch {
-      // Silently fail — history is supplementary
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : 'Failed to load history');
     } finally {
       setHistoryLoading(false);
     }
   }, []);
 
+  // Load history on mount
   useEffect(() => { loadHistory(); }, [loadHistory]);
-  useEffect(() => { if (result) loadHistory(); }, [result, loadHistory]);
+
+  // Re-fetch history when investigation result changes (new investigation completed)
+  const resultId = result?.investigationId ?? null;
+  useEffect(() => {
+    if (resultId && resultId !== lastResultId.current) {
+      lastResultId.current = resultId;
+      // Small delay to ensure database commit completes
+      const timer = setTimeout(() => loadHistory(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [resultId, loadHistory]);
 
   return (
     <motion.div
@@ -111,29 +126,51 @@ export default function MissionControl() {
                 </div>
               )}
 
-              {!historyLoading && historyItems.length > 0 && (
+              {!historyLoading && historyError && (
+                <div className="py-4 text-center border border-[#FF5C5C]/20">
+                  <p className="text-[10px] font-mono text-[#FF5C5C]/70">{historyError}</p>
+                  <button onClick={() => loadHistory()} className="text-[9px] font-mono text-[#38BDF8]/60 hover:text-[#38BDF8] mt-1">RETRY</button>
+                </div>
+              )}
+
+              {!historyLoading && !historyError && historyItems.length > 0 && (
                 <div className="space-y-1.5">
-                  {historyItems.map((item) => (
+                  {historyItems.map((item, idx) => (
                     <motion.div
                       key={item.investigationId}
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: 0.2, delay: idx * 0.05 }}
                       onClick={() => navigate(`/investigations/${item.investigationId}`)}
-                      className="flex items-center gap-3 py-2.5 px-3 border border-[#1E293B]/60 bg-[#0B0F18]/60 hover:border-[#38BDF8]/20 hover:bg-[#0D111A]/80 cursor-pointer transition-all duration-200"
+                      className={`py-2.5 px-3 border cursor-pointer transition-all duration-200 ${
+                        idx === 0
+                          ? 'border-[#38BDF8]/20 bg-[#38BDF8]/5 hover:border-[#38BDF8]/40'
+                          : 'border-[#1E293B]/60 bg-[#0B0F18]/60 hover:border-[#38BDF8]/20 hover:bg-[#0D111A]/80'
+                      }`}
                     >
-                      <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
                         <p className="text-[10px] font-mono text-[#38BDF8] tracking-wider truncate">
                           {item.investigationId}
                         </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[9px] font-mono text-[#8A94A6]/50 flex items-center gap-1">
-                            <Clock className="w-2.5 h-2.5" />
-                            {item.createdAtFormatted}
+                        {idx === 0 && (
+                          <span className="text-[8px] font-mono text-[#34D399] bg-[#34D399]/10 px-1.5 py-0.5 tracking-wider">
+                            LATEST
                           </span>
-                        </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2.5 text-[9px] font-mono shrink-0">
+                      {item.datasetFilename && (
+                        <p className="text-[9px] font-mono text-[#8A94A6]/60 truncate mb-0.5">
+                          {item.datasetFilename}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[9px] font-mono text-[#8A94A6]/50 flex items-center gap-1">
+                          <Clock className="w-2.5 h-2.5" />
+                          {item.createdAtShort}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2.5 text-[9px] font-mono mt-1.5">
+                        <span className="text-[#8A94A6]/60">{item.totalResults}w</span>
                         {item.fraudIncidents > 0 && (
                           <span className="text-[#FF5C5C]">{item.fraudIncidents} fraud</span>
                         )}
@@ -167,28 +204,34 @@ function ResultsSummary({
   result,
   onViewIncidents,
 }: {
-  result: { totalResults: number; fullIncidents: unknown[]; summary: { fraudIncidents: number; organicIncidents: number; reviewRequired: number; spikesDetected: number } };
+  result: { totalResults: number; fullIncidents: unknown[]; investigationId?: string; summary: { fraudIncidents: number; organicIncidents: number; reviewRequired: number; spikesDetected: number } };
   onViewIncidents: () => void;
 }) {
   const s = result.summary;
   const hasIncidents = result.fullIncidents.length > 0;
 
   return (
-    <div className="border border-[#1E293B]/60 bg-[#0B0F18]/80 p-4">
+    <div className="border border-[#34D399]/20 bg-[#0B0F18]/80 p-4">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-5 h-5 rounded-full bg-[#34D399]/10 flex items-center justify-center">
           <TrendingUp className="w-3 h-3 text-[#34D399]" />
         </div>
-        <h3 className="text-[10px] font-mono tracking-[0.15em] uppercase text-[#8A94A6]">
+        <h3 className="text-[10px] font-mono tracking-[0.15em] uppercase text-[#34D399]">
           Investigation Complete
         </h3>
       </div>
 
-      <div className="mb-3">
+      <div className="mb-1">
         <p className="text-lg font-mono font-medium text-[#F3F4F6]">
           {result.totalResults.toLocaleString()} windows analyzed
         </p>
       </div>
+
+      {result.investigationId && (
+        <p className="text-[9px] font-mono text-[#8A94A6]/50 mb-3">
+          {result.investigationId}
+        </p>
+      )}
 
       <div className="grid grid-cols-3 gap-2 mb-4">
         <MetricPill
@@ -211,15 +254,25 @@ function ResultsSummary({
         />
       </div>
 
-      {hasIncidents && (
-        <button
-          onClick={onViewIncidents}
-          className="w-full flex items-center justify-center gap-2 py-2 text-[10px] font-mono tracking-wider text-[#38BDF8] bg-[#38BDF8]/8 hover:bg-[#38BDF8]/15 border border-[#38BDF8]/20 transition-all duration-200"
-        >
-          VIEW INCIDENTS
-          <ChevronRight className="w-3 h-3" />
-        </button>
-      )}
+      <div className="space-y-2">
+        {hasIncidents && (
+          <button
+            onClick={onViewIncidents}
+            className="w-full flex items-center justify-center gap-2 py-2.5 text-[11px] font-mono tracking-wider bg-[#38BDF8] text-[#0B0F18] hover:bg-[#60CCFA] transition-all duration-200"
+          >
+            VIEW INCIDENTS
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {result.investigationId && (
+          <button
+            onClick={() => window.location.href = `/investigations/${result.investigationId}`}
+            className="w-full flex items-center justify-center gap-2 py-2 text-[10px] font-mono tracking-wider text-[#8A94A6] hover:text-[#38BDF8] border border-[#1E293B] hover:border-[#38BDF8]/20 transition-all duration-200"
+          >
+            VIEW INVESTIGATION
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRight, Crosshair, Activity, AlertTriangle, Building2 } from 'lucide-react';
-import { merchants, fullIncidents } from '../../data/mockData';
+import { Search, ArrowRight, Crosshair, AlertTriangle } from 'lucide-react';
+
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -29,30 +29,9 @@ export function CommandPalette({ isOpen, onClose, onNavigate }: CommandPalettePr
   const allItems = useMemo<CommandItem[]>(() => {
     const items: CommandItem[] = [
       // Page navigation
-      { id: 'page-mission', label: 'Mission Control', category: 'Pages', path: '/', icon: <Crosshair className="w-3.5 h-3.5" />, color: '#38BDF8' },
-      { id: 'page-activity', label: 'Activity Intelligence', category: 'Pages', path: '/activity', icon: <Activity className="w-3.5 h-3.5" />, color: '#38BDF8' },
-      { id: 'page-incidents', label: 'Incident Intelligence', category: 'Pages', path: '/incidents', icon: <AlertTriangle className="w-3.5 h-3.5" />, color: '#38BDF8' },
-      { id: 'page-merchants', label: 'Merchant Intelligence', category: 'Pages', path: '/merchants', icon: <Building2 className="w-3.5 h-3.5" />, color: '#38BDF8' },
-      // Merchants
-      ...merchants.map(m => ({
-        id: `merchant-${m.id}`,
-        label: m.name,
-        category: 'Merchants',
-        path: `/merchants?merchant=${m.id}`,
-        icon: <Building2 className="w-3.5 h-3.5" />,
-        color: '#34D399',
-        meta: m.riskLevel === 'high' ? 'HIGH RISK' : m.riskLevel === 'medium' ? 'MEDIUM' : 'LOW RISK',
-      })),
-      // Incidents
-      ...fullIncidents.map(i => ({
-        id: `incident-${i.id}`,
-        label: i.headline,
-        category: 'Incidents',
-        path: `/incidents?incident=${i.id}`,
-        icon: <AlertTriangle className="w-3.5 h-3.5" />,
-        color: i.severity === 'critical' ? '#FF5C5C' : i.severity === 'high' ? '#FBBF24' : '#38BDF8',
-        meta: `${i.merchantName} · ${i.severity.toUpperCase()}`,
-      })),
+      { id: 'page-investigate', label: 'Investigate', category: 'Pages', path: '/', icon: <Crosshair className="w-3.5 h-3.5" />, color: '#38BDF8' },
+      { id: 'page-incidents', label: 'Incidents', category: 'Pages', path: '/incidents', icon: <AlertTriangle className="w-3.5 h-3.5" />, color: '#38BDF8' },
+      { id: 'page-history', label: 'History', category: 'Pages', path: '/investigations', icon: <Crosshair className="w-3.5 h-3.5" />, color: '#38BDF8' },
     ];
     return items;
   }, []);
@@ -145,7 +124,7 @@ export function CommandPalette({ isOpen, onClose, onNavigate }: CommandPalettePr
                   value={query}
                   onChange={(e) => { setQuery(e.target.value); setSelectedIndex(0); }}
                   onKeyDown={handleKeyDown}
-                  placeholder="Search pages, merchants, incidents..."
+                  placeholder="Search pages..."
                   className="flex-1 bg-transparent text-[14px] text-[#F3F4F6] placeholder:text-[#8A94A6]/40 outline-none"
                 />
                 <kbd className="text-[10px] font-mono text-[#8A94A6]/40 px-1.5 py-0.5 bg-[#111827]/60 border border-[#1a1f2e]/40 rounded">

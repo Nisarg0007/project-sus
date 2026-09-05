@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { dataSource } from '../data/dataSource';
 import type { IncidentListItem } from '../services/incidentService';
+import type { InvestigationHistoryItem } from '../api/mappers/investigationHistoryMapper';
+import { formatDate } from '../utils/dateFormat';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -38,10 +40,9 @@ const SEVERITIES = [
 ];
 
 const SORT_OPTIONS = [
-  { value: 'created_at', label: 'Created' },
-  { value: 'updated_at', label: 'Updated' },
+  { value: 'created_at', label: 'Date' },
   { value: 'severity', label: 'Severity' },
-  { value: 'fraud_probability', label: 'Fraud Probability' },
+  { value: 'fraud_probability', label: 'Fraud Prob.' },
   { value: 'confidence', label: 'Confidence' },
 ];
 
@@ -130,6 +131,10 @@ export default function PersistedIncidentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Available filter options from real data
+  const [availableInvestigations, setAvailableInvestigations] = useState<InvestigationHistoryItem[]>([]);
+  const [availableAnalysts, setAvailableAnalysts] = useState<string[]>([]);
+
   const offset = (urlState.page - 1) * PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -168,6 +173,22 @@ export default function PersistedIncidentsPage() {
   useEffect(() => {
     loadIncidents();
   }, [loadIncidents]);
+
+  // Load available investigations for the filter dropdown
+  useEffect(() => {
+    dataSource.getInvestigationHistory(50, 0).then(result => {
+      setAvailableInvestigations(result.items);
+    }).catch(() => {});
+  }, []);
+
+  // Derive available analysts from loaded incidents
+  useEffect(() => {
+    const analysts = new Set<string>();
+    incidents.forEach(inc => {
+      if (inc.assignedAnalyst) analysts.add(inc.assignedAnalyst);
+    });
+    setAvailableAnalysts(Array.from(analysts).sort());
+  }, [incidents]);
 
   // Sync form from URL on mount / URL change
   useEffect(() => {
@@ -242,20 +263,25 @@ export default function PersistedIncidentsPage() {
       className="px-[var(--content-px)] max-w-[var(--content-max)] mx-auto py-6 pb-24"
     >
       {/* Header */}
-      <div className="flex items-baseline gap-3 mb-6">
-        <h1 className="text-[11px] font-mono tracking-[0.2em] uppercase text-[#8A94A6]">
-          Incidents
-        </h1>
-        {hasActiveFilters && (
-          <span className="text-[10px] font-mono text-[#38BDF8]/50">
-            Filters active
-          </span>
-        )}
-        {total > 0 && (
-          <span className="text-[10px] font-mono text-[#8A94A6]/50 ml-auto">
-            {total} total
-          </span>
-        )}
+      <div className="mb-6">
+        <div className="flex items-baseline gap-3 mb-1">
+          <h1 className="text-2xl font-medium text-[#F3F4F6] tracking-tight">
+            Incidents
+          </h1>
+          {total > 0 && (
+            <span className="text-[11px] font-mono text-[#8A94A6]/60">
+              {total} total
+            </span>
+          )}
+          {hasActiveFilters && (
+            <span className="text-[10px] font-mono text-[#38BDF8]/60 ml-auto">
+              Filtered
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-[#8A94A6]">
+          Review unusual transaction activity detected by SUS.
+        </p>
       </div>
 
       {/* Filter bar */}
@@ -309,37 +335,45 @@ export default function PersistedIncidentsPage() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
           {/* Assigned Analyst */}
-          <input
-            type="text"
+          <select
             value={formAnalyst}
             onChange={e => setFormAnalyst(e.target.value)}
-            placeholder="Analyst..."
-            className="bg-[#0D111A] border border-[#1E293B] text-[#F3F4F6] text-[10px] font-mono px-2 py-1.5 placeholder:text-[#8A94A6]/30 focus:border-[#38BDF8]/50 focus:outline-none"
-          />
+            className="bg-[#0D111A] border border-[#1E293B] text-[#F3F4F6] text-[10px] font-mono px-2 py-1.5 focus:border-[#38BDF8]/50 focus:outline-none appearance-none cursor-pointer"
+          >
+            <option value="">All analysts</option>
+            {availableAnalysts.map(a => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
 
           {/* Investigation ID */}
-          <input
-            type="text"
+          <select
             value={formInvestigationId}
             onChange={e => setFormInvestigationId(e.target.value)}
-            placeholder="Investigation ID..."
-            className="bg-[#0D111A] border border-[#1E293B] text-[#F3F4F6] text-[10px] font-mono px-2 py-1.5 placeholder:text-[#8A94A6]/30 focus:border-[#38BDF8]/50 focus:outline-none"
-          />
+            className="bg-[#0D111A] border border-[#1E293B] text-[#F3F4F6] text-[10px] font-mono px-2 py-1.5 focus:border-[#38BDF8]/50 focus:outline-none appearance-none cursor-pointer"
+          >
+            <option value="">All investigations</option>
+            {availableInvestigations.map(inv => (
+              <option key={inv.investigationId} value={inv.investigationId}>
+                {inv.investigationId}{inv.datasetFilename ? ` (${inv.datasetFilename})` : ''}
+              </option>
+            ))}
+          </select>
 
           {/* Date From */}
           <input
-            type="datetime-local"
-            value={formDateFrom}
-            onChange={e => setFormDateFrom(e.target.value)}
-            className="bg-[#0D111A] border border-[#1E293B] text-[#F3F4F6] text-[10px] font-mono px-2 py-1.5 focus:border-[#38BDF8]/50 focus:outline-none"
+            type="date"
+            value={formDateFrom ? formDateFrom.slice(0, 10) : ''}
+            onChange={e => setFormDateFrom(e.target.value ? `${e.target.value}T00:00:00` : '')}
+            className="bg-[#0D111A] border border-[#1E293B] text-[#F3F4F6] text-[10px] font-mono px-2 py-1.5 focus:border-[#38BDF8]/50 focus:outline-none [color-scheme:dark]"
           />
 
           {/* Date To */}
           <input
-            type="datetime-local"
-            value={formDateTo}
-            onChange={e => setFormDateTo(e.target.value)}
-            className="bg-[#0D111A] border border-[#1E293B] text-[#F3F4F6] text-[10px] font-mono px-2 py-1.5 focus:border-[#38BDF8]/50 focus:outline-none"
+            type="date"
+            value={formDateTo ? formDateTo.slice(0, 10) : ''}
+            onChange={e => setFormDateTo(e.target.value ? `${e.target.value}T23:59:59` : '')}
+            className="bg-[#0D111A] border border-[#1E293B] text-[#F3F4F6] text-[10px] font-mono px-2 py-1.5 focus:border-[#38BDF8]/50 focus:outline-none [color-scheme:dark]"
           />
         </div>
 
@@ -482,7 +516,7 @@ export default function PersistedIncidentsPage() {
                   <div className="flex items-center gap-4 text-[9px] font-mono text-[#8A94A6]/60">
                     <span className="flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5" />
-                      {new Date(inc.createdAt).toLocaleDateString()}
+                      {formatDate(inc.createdAt)}
                     </span>
                     <span>{(inc.fraudProbability * 100).toFixed(1)}% fraud</span>
                     <span>{(inc.confidence * 100).toFixed(1)}% conf</span>
