@@ -83,6 +83,10 @@ export function RunInvestigationPanel() {
     if (file) handleFile(file);
   }, [handleFile]);
 
+  // z-threshold validation
+  const parsedZ = parseFloat(zThreshold);
+  const zValid = zThreshold.trim() !== '' && !isNaN(parsedZ) && parsedZ >= 0.01;
+
   const handleRun = useCallback(() => {
     executeInvestigation(merchantFilter || undefined);
   }, [merchantFilter, executeInvestigation]);
@@ -256,9 +260,16 @@ export function RunInvestigationPanel() {
                     onChange={(e) => setZThreshold(e.target.value)}
                     className="w-full px-2 py-1.5 text-[11px] font-mono bg-[#0F1623] border border-[#1E293B] text-[#8A94A6] focus:border-[#38BDF8]/30 focus:outline-none"
                   />
-                  <p className="text-[9px] font-mono text-[#8A94A6]/40 mt-0.5">
-                    Sensitivity for spike detection (default: 0.5)
-                  </p>
+                  {!zValid && zThreshold.trim() !== '' && (
+                    <p className="text-[9px] font-mono text-[#FF5C5C]/70 mt-0.5">
+                      Must be a number ≥ 0.01
+                    </p>
+                  )}
+                  {zValid && (
+                    <p className="text-[9px] font-mono text-[#8A94A6]/40 mt-0.5">
+                      Sensitivity for spike detection (default: 0.5)
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[9px] font-mono text-[#8A94A6] tracking-wider mb-1">
@@ -290,7 +301,7 @@ export function RunInvestigationPanel() {
         <div className="flex items-center gap-4">
           <button
             onClick={handleRun}
-            disabled={isRunning || (mode === 'upload' && !dataReady)}
+            disabled={isRunning || (mode === 'upload' && !dataReady) || !zValid}
             className="flex items-center gap-2 px-5 py-2.5 text-[11px] font-mono tracking-wider uppercase bg-[#38BDF8] text-[#0B0F18] hover:bg-[#60CCFA] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
           >
             {isRunning ? (

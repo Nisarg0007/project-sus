@@ -63,7 +63,7 @@ class TestHealthEndpoint:
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
 
-    def test_docs_endpoint_available(self, client):
-        """Swagger docs should be accessible."""
+    def test_docs_endpoint_not_available_in_production(self, client):
+        """Swagger docs should be hidden when debug mode is off (production default)."""
         response = client.get("/docs")
-        assert response.status_code == 200
+        assert response.status_code == 404

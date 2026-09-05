@@ -111,7 +111,7 @@ async def run_investigation(
     except FileNotFoundError as e:
         raise HTTPException(
             status_code=404,
-            detail=f"Data file not found: {str(e)}",
+            detail="The data files required for this investigation were not found on disk.",
         )
     except ValueError as e:
         raise HTTPException(
@@ -122,7 +122,7 @@ async def run_investigation(
         logger.exception("Unexpected error during investigation")
         raise HTTPException(
             status_code=500,
-            detail=f"Internal pipeline error: {str(e)}",
+            detail="An unexpected error occurred during the investigation. Check server logs for details.",
         )
 
     # Convert domain Incident models to API response models
@@ -187,13 +187,13 @@ async def rerun_investigation(
     except FileNotFoundError as e:
         raise HTTPException(
             status_code=404,
-            detail=f"Data file not found: {str(e)}",
+            detail="The data files required for this investigation were not found on disk.",
         )
     except Exception as e:
         logger.exception("Unexpected error during investigation rerun")
         raise HTTPException(
             status_code=500,
-            detail=f"Internal pipeline error: {str(e)}",
+            detail="An unexpected error occurred during the rerun. Check server logs for details.",
         )
 
     incident_responses = []
@@ -265,13 +265,13 @@ async def rerun_investigation_with_config(
     except FileNotFoundError as e:
         raise HTTPException(
             status_code=404,
-            detail=f"Data file not found: {str(e)}",
+            detail="The data files required for this investigation were not found on disk.",
         )
     except Exception as e:
         logger.exception("Unexpected error during investigation rerun with config")
         raise HTTPException(
             status_code=500,
-            detail=f"Internal pipeline error: {str(e)}",
+            detail="An unexpected error occurred during the rerun. Check server logs for details.",
         )
 
     incident_responses = []
@@ -339,7 +339,7 @@ async def compare_investigations(
         logger.exception("Unexpected error during investigation comparison")
         raise HTTPException(
             status_code=500,
-            detail=f"Comparison error: {str(e)}",
+            detail="An unexpected error occurred during comparison. Check server logs for details.",
         )
 
 
@@ -459,7 +459,7 @@ async def get_investigation_analytics(
         logger.exception("Unexpected error during analytics computation")
         raise HTTPException(
             status_code=500,
-            detail=f"Analytics error: {str(e)}",
+            detail="An unexpected error occurred computing analytics. Check server logs for details.",
         )
 
 

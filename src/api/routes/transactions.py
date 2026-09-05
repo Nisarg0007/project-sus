@@ -133,7 +133,7 @@ async def upload_transaction_csv(
         logger.exception("Validation failed during upload")
         raise HTTPException(
             status_code=500,
-            detail=f"Validation error: {e}",
+            detail="An error occurred while validating the uploaded file.",
         )
 
     # Store the dataset (DB-backed metadata)

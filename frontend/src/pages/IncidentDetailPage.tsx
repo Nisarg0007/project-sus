@@ -423,11 +423,13 @@ export default function IncidentDetailPage() {
                 onChange={e => setWorkflowStatus(e.target.value)}
                 className="w-full bg-[#0D111A] border border-[#1E293B] text-[#F3F4F6] text-xs font-mono px-3 py-2 focus:border-[#38BDF8]/50 focus:outline-none transition-colors"
               >
-                {workflowStatusOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
+                {workflowStatusOptions
+                  .filter(opt => opt.value === workflowStatus || allowedTransitions.includes(opt.value))
+                  .map(opt => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
               </select>
               {allowedTransitions.length > 0 && (
                 <p className="text-[9px] font-mono text-[#8A94A6]/40 mt-1">

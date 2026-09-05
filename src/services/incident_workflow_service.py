@@ -150,12 +150,15 @@ class IncidentWorkflowService:
             changed_by = None
             if isinstance(norm_analyst, str):
                 changed_by = norm_analyst
+            # Record the note text in the audit trail — but never record
+            # the internal _CLEAR_VALUE sentinel.
+            history_note = norm_notes if isinstance(norm_notes, str) else None
             self._repo.add_status_history(
                 incident.id,
                 old_status=old_status,
                 new_status=workflow_status,
                 changed_by=changed_by,
-                note=norm_notes,
+                note=history_note,
             )
 
         # Apply updates — _CLEAR_VALUE passes through to the repo

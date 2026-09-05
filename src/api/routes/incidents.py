@@ -211,7 +211,7 @@ async def update_incident(
         logger.exception("Error updating incident %s", incident_id)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to update incident: {str(e)}",
+            detail="An unexpected error occurred while updating the incident.",
         )
 
     # Reload with history to return full detail
